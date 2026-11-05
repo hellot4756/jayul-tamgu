@@ -80,14 +80,16 @@
   .sheet{width:194mm;margin:0 auto 14px;display:grid;grid-template-columns:1fr 1fr;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.15)}
   .sheet.n8{height:281mm;grid-template-rows:repeat(4,1fr)}
   .sheet.n6{height:281mm;grid-template-rows:repeat(3,1fr)}
-  .cardp{border:1px dashed #888;padding:5mm 6mm;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;font-size:11px;line-height:1.35}
-  .cardp .ct{font-weight:bold;font-size:13px;color:#2f4b7c;border-bottom:1.5px solid #2f4b7c;padding-bottom:2mm}
-  .cardp .cr{font-size:14px}.cardp .cr b{font-size:18px;margin:0 8px 0 6px}.cardp .cl,.cardp .cl2{color:#666;font-size:11px}
-  .cardp .cn{color:#444}
-  .cardp .cc{font-family:'Consolas','Courier New',monospace;font-size:30px;font-weight:bold;letter-spacing:5px;text-align:center;border:2px solid #2f4b7c;border-radius:6px;padding:2mm 0;background:#f3f7ff}
-  .sheet.n6 .cardp .cc{font-size:36px}
-  .cardp .cu{font-size:11px;color:#333;word-break:break-all}.cardp .cu b{font-size:12px}
-  .cardp .cw{font-size:9.5px;color:#777}
+  .cardp{border:1px solid #999;padding:4mm 5mm;display:flex;flex-direction:column;overflow:hidden;background:#fff;outline:1px dashed #bbb;outline-offset:0}
+  .cardp .ct{font-weight:bold;font-size:15px;color:#1f3a5f;text-align:center;padding-bottom:2.5mm}
+  .cardp .cb2{flex:1;display:flex;align-items:center;gap:4mm;min-height:0}
+  .cardp .cq{width:48%;height:auto;max-height:100%;aspect-ratio:1;object-fit:contain;image-rendering:pixelated;flex:0 0 auto}
+  .cardp .ci{flex:1;min-width:0}
+  .cardp .cl{color:#666;font-size:12px;margin-top:3mm;white-space:nowrap}
+  .cardp .cv{font-family:'Consolas','Courier New',monospace;font-weight:bold;font-size:26px;color:#000}
+  .cardp .cc{font-family:'Consolas','Courier New',monospace;font-weight:bold;font-size:25px;color:#c0392b;letter-spacing:0}
+  .sheet.n6 .cardp .cv,.sheet.n6 .cardp .cc{font-size:28px}
+  .sheet.n6 .cardp .cl{font-size:13px}
   .cardp.empty{border-color:transparent}
 
   /* 교사 */
@@ -118,7 +120,6 @@
     .doc a{color:#000}
     .sheet{page:cards;width:auto;margin:0;box-shadow:none;page-break-after:always;break-after:page;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .sheet:last-child{page-break-after:auto;break-after:auto}
-    .cardp{border-color:#888}
   }
 </style>
 </head>
@@ -835,11 +836,8 @@ function showCards(){
   pages.forEach(function(pg){
     h += '<div class="sheet n' + per + '">';
     pg.forEach(function(s){
-      h += '<div class="cardp"><div class="ct">〈화법과 언어〉 자율 탐구 보고서</div>' +
-        '<div class="cr"><span class="cl">학번</span><b>' + esc(s.id) + '</b>' + (s.name ? '<span class="cn">' + esc(s.name) + '</span>' : '') + '</div>' +
-        '<div class="cl2">개인 코드</div><div class="cc">' + esc(s.code) + '</div>' +
-        '<div class="cu">접속 주소<br><b>' + esc(url.replace(/^https?:\/\//, '')) + '</b></div>' +
-        '<div class="cw">※ 이 코드는 나만 사용하세요. 다른 사람에게 알려 주거나 사진으로 올리지 마세요. 잃어버리면 선생님께 말씀드리세요.</div></div>';
+      h += '<div class="cardp"><div class="ct">&lt; 화법과 언어 주제탐구 활동 &gt;</div><div class="cb2"><img class="cq" src="/qr.png" alt="QR">' +
+        '<div class="ci"><div class="cl">학번</div><div class="cv">' + esc(s.id) + '</div><div class="cl">개인 고유번호</div><div class="cc">' + esc(s.code) + '</div></div></div></div>';
     });
     for (var k = pg.length; k < per; k++) h += '<div class="cardp empty"></div>';
     h += '</div>';
