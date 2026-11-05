@@ -1,2 +1,4 @@
 # 내 컴퓨터에서 시험할 때만 .dev.vars 로 복사해서 사용합니다 (GitHub에는 올리지 않음)
-TEACHER_PW=test1234
+TEACHER_PW_189=test1234
+TEACHER_PW_234=test1234
+TEACHER_PW_567=test1234

@@ -8,6 +8,11 @@ const MAX_HTML = 400000;               // 문서 한 편 최대 글자 수
 const MAX_IMG_B64 = 700000;            // 이미지 1장 최대 크기(base64 글자 수, 약 500KB)
 const MAX_IMGS_PER_STUDENT = 60;
 const IMG_DBS = 3;
+// 교사 계정: key는 로그인·데이터 분리에 쓰이고, 비밀번호는 Secret 'TEACHER_PW_<key>'에 저장합니다.
+// (기존 TEACHER_PW 는 '567' 계정의 비밀번호로 계속 사용됩니다. 기존에 등록한 학생도 '567' 소속이 됩니다.)
+const TEACHERS = [{ key: '189', label: '189반' }, { key: '234', label: '234반' }, { key: '567', label: '567반' }];
+const DEFAULT_OWNER = '567';
+const teacherPw = (env, key) => env['TEACHER_PW_' + key] || (key === DEFAULT_OWNER ? env.TEACHER_PW : '');
 
 // ───────── 공통 도우미 ─────────
 class Err extends Error {}
@@ -97,15 +102,24 @@ const IMG_SCHEMA = [
   `CREATE INDEX IF NOT EXISTS img_owner ON img(owner)`,
 ];
 const ready = {};
-async function initDb(db, key, schema) {
+async function initDb(db, key, schema, after) {
   if (!ready[key]) {
-    ready[key] = db.batch(schema.map((s) => db.prepare(s))).catch((e) => { delete ready[key]; throw e; });
+    ready[key] = (async () => {
+      await db.batch(schema.map((s) => db.prepare(s)));
+      if (after) await after(db);
+    })().catch((e) => { delete ready[key]; throw e; });
   }
   await ready[key];
 }
+// 교사 구분용 칸(owner)을 예전 데이터베이스에도 추가 (이미 있으면 무시)
+async function addOwner(db) {
+  try { await db.prepare(`ALTER TABLE roster ADD COLUMN owner TEXT NOT NULL DEFAULT '${DEFAULT_OWNER}'`).run(); }
+  catch (e) { if (!/duplicate column/i.test(String(e && e.message))) throw e; }
+  await db.prepare('CREATE INDEX IF NOT EXISTS roster_owner ON roster(owner)').run();
+}
 async function mainDb(env) {
   if (!env.DB) bad('서버 설정 오류: 데이터베이스(DB)가 연결되지 않았습니다.');
-  await initDb(env.DB, 'DB', MAIN_SCHEMA);
+  await initDb(env.DB, 'DB', MAIN_SCHEMA, addOwner);
   return env.DB;
 }
 async function imgDb(env, idx) {
@@ -172,16 +186,21 @@ const API = {
     await failed(db, key);
     bad('학번 또는 개인 코드가 맞지 않습니다.');
   },
-  async teacherLogin(c, pw) {
-    if (!c.env.TEACHER_PW) bad('교사 비밀번호가 아직 설정되지 않았습니다. Cloudflare 대시보드의 [설정 → 변수 및 비밀]에서 TEACHER_PW를 만드세요.');
-    await lockCheck(c.db, 'T');
-    if (!ctEqual(String(pw || ''), String(c.env.TEACHER_PW))) { await failed(c.db, 'T'); bad('비밀번호가 맞지 않습니다.'); }
-    await clearFail(c.db, 'T').catch(() => {});
-    return { token: await makeToken(c.env, 'T', 'teacher', 0) };
+  async teachers() { return TEACHERS; },
+  async teacherLogin(c, key, pw) {
+    key = String(key || '');
+    const t = TEACHERS.find((x) => x.key === key);
+    if (!t) bad('교사를 선택해 주세요.');
+    const real = teacherPw(c.env, key);
+    if (!real) bad(t.label + ' 교사 비밀번호가 아직 설정되지 않았습니다. Cloudflare 대시보드의 [설정 → 변수 및 비밀]에서 TEACHER_PW_' + key + '를 만드세요.');
+    await lockCheck(c.db, 'T' + key);
+    if (!ctEqual(String(pw || ''), String(real))) { await failed(c.db, 'T' + key); bad('비밀번호가 맞지 않습니다.'); }
+    await clearFail(c.db, 'T' + key).catch(() => {});
+    return { token: await makeToken(c.env, 'T', key, 0), teacher: t.label };
   },
   // 새로고침 후 로그인 상태 되살리기
   async resume(c) {
-    if (c.who.r === 'T') return { role: 'T' };
+    if (c.who.r === 'T') { const t = TEACHERS.find((x) => x.key === c.who.i); if (!t) bad('AUTH'); return { role: 'T', teacher: t.label }; }
     const r = await studentRow(c.db, c.who.i, c.who.v);
     return { role: 'S', id: r.id, name: r.name || r.id, acts: actsOf(r.acts) };
   },
@@ -239,11 +258,11 @@ const API = {
 
   // ───────── 교사: 개요·활동 지정·문서 보기 ─────────
   async teacherOverview(c) {
-    need(c, 'T');
+    need(c, 'T'); const o = c.who.i;
     const [ro, dk, im] = await c.db.batch([
-      c.db.prepare('SELECT id, name, acts FROM roster ORDER BY id'),
-      c.db.prepare('SELECT id, act, len, upd, ver, pchars, pcount FROM docs'),
-      c.db.prepare(`SELECT id, act, COUNT(*) AS n FROM log WHERE kind='이미지' GROUP BY id, act`),
+      c.db.prepare('SELECT id, name, acts FROM roster WHERE owner=? ORDER BY id').bind(o),
+      c.db.prepare('SELECT d.id, d.act, d.len, d.upd, d.ver, d.pchars, d.pcount FROM docs d JOIN roster r ON r.id=d.id WHERE r.owner=?').bind(o),
+      c.db.prepare(`SELECT l.id, l.act, COUNT(*) AS n FROM log l JOIN roster r ON r.id=l.id WHERE r.owner=? AND l.kind='이미지' GROUP BY l.id, l.act`).bind(o),
     ]);
     const st = {};
     ro.results.forEach((r) => { st[r.id] = { id: r.id, name: r.name || '', acts: actsOf(r.acts), docs: {} }; });
@@ -254,11 +273,12 @@ const API = {
   async setActs(c, ids, val) {
     need(c, 'T');
     const list = (Array.isArray(ids) ? ids : []).map(String).slice(0, 2000);
-    const r = await c.db.prepare('UPDATE roster SET acts=? WHERE id IN (SELECT value FROM json_each(?))').bind(actsOf(val), JSON.stringify(list)).run();
+    const r = await c.db.prepare('UPDATE roster SET acts=? WHERE owner=? AND id IN (SELECT value FROM json_each(?))').bind(actsOf(val), c.who.i, JSON.stringify(list)).run();
     return r.meta.changes;
   },
   async teacherDoc(c, id, act) {
     need(c, 'T'); id = String(id); act = String(act);
+    await ownStudent(c, id);
     const [d, l, ro] = await c.db.batch([
       c.db.prepare('SELECT html, ver, upd FROM docs WHERE key=?').bind(id + '|' + act),
       c.db.prepare('SELECT ts, kind, len, text FROM log WHERE id=? AND act=? ORDER BY n DESC LIMIT 1500').bind(id, act),
@@ -270,7 +290,7 @@ const API = {
   },
   async getSnapshot(c, n) {
     need(c, 'T');
-    const r = await c.db.prepare('SELECT ts, gz FROM snap WHERE n=?').bind(Number(n) || 0).first();
+    const r = await c.db.prepare('SELECT s.ts, s.gz FROM snap s JOIN roster r ON r.id=s.id WHERE s.n=? AND r.owner=?').bind(Number(n) || 0, c.who.i).first();
     if (!r) bad('스냅샷을 찾을 수 없습니다.');
     return { time: r.ts, html: await gunzipB64(r.gz) };
   },
@@ -294,7 +314,7 @@ const API = {
 
   async rosterList(c) {
     need(c, 'T');
-    const r = await c.db.prepare('SELECT id, name, code, acts FROM roster ORDER BY id').all();
+    const r = await c.db.prepare('SELECT id, name, code, acts FROM roster WHERE owner=? ORDER BY id').bind(c.who.i).all();
     return r.results.map((x) => ({ id: x.id, name: x.name, code: x.code, acts: actsOf(x.acts) }));
   },
   // items: [{id, name}] — 새 학번은 코드를 자동 생성, 이미 있는 학번은 별칭만 갱신(코드는 그대로)
@@ -308,32 +328,41 @@ const API = {
     });
     if (!list.length) bad('등록할 학번이 없습니다. (학번은 숫자·영문 12자 이내)');
     if (list.length > 600) bad('한 번에 600명까지 등록할 수 있습니다.');
-    const before = (await c.db.prepare('SELECT COUNT(*) AS n FROM roster').first()).n;
-    // 코드 중복 방지를 위해 기존 코드 목록을 읽음
+    const o = c.who.i;
+    // 다른 교사 명단에 이미 있는 학번은 건드리지 않고 건너뜀
+    const other = new Set((await c.db.prepare('SELECT id FROM roster WHERE owner<>? AND id IN (SELECT json_extract(value,\'$.id\') FROM json_each(?))').bind(o, JSON.stringify(list)).all()).results.map((r) => r.id));
+    const mine = list.filter((x) => !other.has(x.id));
+    const skipped = list.filter((x) => other.has(x.id)).map((x) => x.id);
+    if (!mine.length) bad('입력한 학번이 모두 다른 선생님 명단에 있어서 등록할 수 없습니다: ' + skipped.slice(0, 10).join(', '));
+    const before = (await c.db.prepare('SELECT COUNT(*) AS n FROM roster WHERE owner=?').bind(o).first()).n;
     const used = new Set((await c.db.prepare('SELECT code FROM roster').all()).results.map((r) => r.code.toUpperCase()));
-    list.forEach((x) => { let k; do { k = randCode(); } while (used.has(k)); used.add(k); x.code = k; });
+    mine.forEach((x) => { let k; do { k = randCode(); } while (used.has(k)); used.add(k); x.code = k; });
     await c.db.prepare(
-      `INSERT INTO roster(id,name,code,acts,tv) SELECT json_extract(value,'$.id'), json_extract(value,'$.name'), json_extract(value,'$.code'), '', 0 FROM json_each(?) WHERE true
-       ON CONFLICT(id) DO UPDATE SET name=excluded.name`
-    ).bind(JSON.stringify(list)).run();
-    const after = (await c.db.prepare('SELECT COUNT(*) AS n FROM roster').first()).n;
-    return { added: after - before, updated: list.length - (after - before) };
+      `INSERT INTO roster(id,name,code,acts,tv,owner) SELECT json_extract(value,'$.id'), json_extract(value,'$.name'), json_extract(value,'$.code'), '', 0, ? FROM json_each(?) WHERE true
+       ON CONFLICT(id) DO UPDATE SET name=excluded.name WHERE roster.owner=excluded.owner`
+    ).bind(o, JSON.stringify(mine)).run();
+    const after = (await c.db.prepare('SELECT COUNT(*) AS n FROM roster WHERE owner=?').bind(o).first()).n;
+    return { added: after - before, updated: mine.length - (after - before), skipped };
   },
   async rosterResetCode(c, id) {
     need(c, 'T'); id = String(id);
     const used = new Set((await c.db.prepare('SELECT code FROM roster').all()).results.map((r) => r.code.toUpperCase()));
     let k; do { k = randCode(); } while (used.has(k));
-    const r = await c.db.prepare('UPDATE roster SET code=?, tv=tv+1 WHERE id=?').bind(k, id).run();
+    const r = await c.db.prepare('UPDATE roster SET code=?, tv=tv+1 WHERE id=? AND owner=?').bind(k, id, c.who.i).run();
     if (!r.meta.changes) bad('학번을 찾을 수 없습니다.');
     return { code: k };
   },
   async rosterDelete(c, ids) {
     need(c, 'T');
     const list = (Array.isArray(ids) ? ids : []).map(String).slice(0, 2000);
-    const r = await c.db.prepare('DELETE FROM roster WHERE id IN (SELECT value FROM json_each(?))').bind(JSON.stringify(list)).run();
+    const r = await c.db.prepare('DELETE FROM roster WHERE owner=? AND id IN (SELECT value FROM json_each(?))').bind(c.who.i, JSON.stringify(list)).run();
     return r.meta.changes;
   },
 };
+async function ownStudent(c, id) {
+  const r = await c.db.prepare('SELECT 1 AS x FROM roster WHERE id=? AND owner=?').bind(id, c.who.i).first();
+  if (!r) bad('내 명단에 없는 학생입니다.');
+}
 function need(c, role) { if (c.who.r !== role) bad('AUTH'); }
 function tplAct(a) { a = String(a); if (!TEMPLATES[a]) bad('활동 번호 오류'); return a; }
 async function conflict(db, key, id, act) {
@@ -376,6 +405,7 @@ async function getImage(env, c, id) {
   const r = await idb.prepare('SELECT owner, mime, data FROM img WHERE id=?').bind(id).first();
   if (!r) bad('이미지를 찾을 수 없습니다.');
   if (c.who.r === 'S' && r.owner !== c.who.i && r.owner !== 'TEMPLATE') bad('볼 수 없는 이미지입니다.');
+  if (c.who.r === 'T' && r.owner !== 'TEMPLATE') await ownStudent(c, r.owner);
   // 문자열 그대로 돌려주고, 화면이 data: 주소로 사용 (서버에서 이진 변환 작업을 하지 않아 가볍습니다)
   return { mime: r.mime, data: r.data };
 }
@@ -392,7 +422,7 @@ export default {
       const name = path.slice(5);
       const m = (req.headers.get('authorization') || '').match(/^Bearer (.+)$/);
       const c = { env, db, who: null };
-      if (name !== 'login' && name !== 'teacherLogin') c.who = await readToken(env, m && m[1]);
+      if (name !== 'login' && name !== 'teacherLogin' && name !== 'teachers') c.who = await readToken(env, m && m[1]);
 
       if (name === 'uploadImage') return await uploadImage(env, c, req, url);
       if (!Object.prototype.hasOwnProperty.call(API, name)) bad('알 수 없는 요청입니다.');

@@ -532,11 +532,16 @@ function showLogin(msg){
     '<div class="card login"><div class="tabs"><button id="tS" class="on" onclick="tab(\'S\')">학생</button><button id="tT" onclick="tab(\'T\')">교사</button></div>' +
     '<div id="fS"><label>학번</label><input type="text" id="sid" inputmode="numeric" autocomplete="off">' +
     '<label>개인 코드</label><input type="password" id="scode" autocomplete="off"></div>' +
-    '<div id="fT" style="display:none"><label>교사 비밀번호</label><input type="password" id="tpw" autocomplete="off"></div>' +
+    '<div id="fT" style="display:none"><label>교사</label><select id="tsel"><option value="">불러오는 중…</option></select><label>교사 비밀번호</label><input type="password" id="tpw" autocomplete="off"></div>' +
     '<p><button class="btn" id="goBtn" onclick="doLogin()">들어가기</button></p>' +
     '<div class="err" id="lerr">' + esc(msg || '') + '</div>' +
     '<p class="small">내 보고서는 나만 볼 수 있고, 선생님은 작성·수정 과정(붙여넣기 기록 포함)을 확인할 수 있습니다.</p></div>';
   window.__tab = 'S';
+  api('teachers', []).then(function(j){
+    var sel = $('tsel'); if (!sel) return;
+    sel.innerHTML = (j.ok ? j.r : []).map(function(t){ return '<option value="' + esc(t.key) + '">' + esc(t.label) + '</option>'; }).join('') || '<option value="">(불러오지 못했습니다)</option>';
+    var last = ssGet('tsel'); if (last) sel.value = last;
+  });
   ['sid','scode','tpw'].forEach(function(i){ $(i).addEventListener('keydown', function(e){ if (e.key === 'Enter') doLogin(); }); });
 }
 function tab(t){
@@ -550,7 +555,7 @@ function doLogin(){
   if (window.__tab === 'S'){
     call('login', [$('sid').value, $('scode').value], function(r){ TOKEN = r.token; ROLE = 'S'; ssSet('tok', r.token); startStudent(r); }, fail);
   } else {
-    call('teacherLogin', [$('tpw').value], function(r){ TOKEN = r.token; ROLE = 'T'; ssSet('tok', r.token); startTeacher(); }, fail);
+    ssSet('tsel', $('tsel').value); call('teacherLogin', [$('tsel').value, $('tpw').value], function(r){ TOKEN = r.token; ROLE = 'T'; ssSet('tok', r.token); startTeacher(r.teacher); }, fail);
   }
 }
 function logout(expired){
@@ -605,8 +610,8 @@ function teacherTabs(cur){
     '<button class="' + (cur === 'tpl1' ? 'on' : '') + '" onclick="openTpl(\'1\')">활동 1 양식 편집</button>' +
     '<button class="' + (cur === 'tpl2' ? 'on' : '') + '" onclick="openTpl(\'2\')">활동 2 양식 편집</button></div>';
 }
-function startTeacher(){
-  $('btnOut').style.display = ''; $('title').textContent = '자율 탐구 · 교사 화면';
+function startTeacher(label){
+  $('btnOut').style.display = ''; $('title').textContent = '자율 탐구 · 교사 화면' + (label ? ' · ' + label : '');
   loadOverview();
 }
 function loadOverview(){
@@ -857,7 +862,7 @@ function roImport(){
   });
   if (!items.length){ alert('등록할 줄이 없습니다. 학번과 별칭을 한 줄에 한 명씩 붙여넣어 주세요.'); return; }
   if (!confirm(items.length + '명을 등록할까요?')) return;
-  call('rosterImport', [items], function(r){ alert('새로 ' + r.added + '명 등록, ' + r.updated + '명은 별칭만 갱신했습니다.'); openRoster(); });
+  call('rosterImport', [items], function(r){ alert('새로 ' + r.added + '명 등록, ' + r.updated + '명은 이름만 갱신했습니다.' + (r.skipped && r.skipped.length ? '\n\n다른 선생님 명단에 이미 있어 건너뛴 학번 ' + r.skipped.length + '개: ' + r.skipped.slice(0, 15).join(', ') : '')); openRoster(); });
 }
 function roReset(id){
   if (!confirm(id + ' 학생의 개인 코드를 새로 만들까요? 예전 코드는 바로 쓸 수 없게 됩니다.')) return;
@@ -883,7 +888,7 @@ function roCsv(){
   api('resume', []).then(function(j){
     if (!j.ok){ showLogin(); return; }
     var r = j.r; ROLE = r.role;
-    if (r.role === 'T') startTeacher(); else startStudent(r);
+    if (r.role === 'T') startTeacher(r.teacher); else startStudent(r);
   });
 })();
 </script>
