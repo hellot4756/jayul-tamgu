@@ -812,6 +812,7 @@ function renderRoster(){
     '<p><button class="btn" onclick="roImport()">등록하고 개인 코드 만들기</button></p></div>' +
     '<div class="card"><div class="noprint">' + classButtons(RO, ROFILTER, 'setRoFilter') +
     '<p style="margin:6px 0"><button class="btn" onclick="showCards()"' + (selN ? '' : ' disabled') + '>🖨 선택한 ' + selN + '명 코드지 인쇄</button> ' +
+    '<button class="btn sub" style="color:#c0392b"' + (selN ? '' : ' disabled') + ' onclick="roDelSel()">🗑 선택한 ' + selN + '명 삭제</button> ' +
     '<button class="btn sub" onclick="roSelAll(' + (allOn ? 'false' : 'true') + ')">' + (allOn ? '보이는 학생 선택 해제' : '보이는 학생 모두 선택') + '</button> ' +
     '<button class="btn sub" onclick="roCsv()">CSV 내려받기(엑셀용)</button> <span class="small">보이는 ' + list.length + '명 / 전체 ' + RO.length + '명</span></p>' +
     '<p class="small">코드지를 뽑을 학생을 체크하세요(반을 바꿔도 체크는 유지됩니다). 개인 코드는 학생 본인에게만 알려 주세요. 잃어버리거나 유출되면 [재발급]을 누르세요(예전 코드와 로그인 상태는 바로 무효가 됩니다).</p></div>' +
@@ -871,6 +872,16 @@ function roReset(id){
 function roDel(id){
   if (!confirm(id + ' 학생을 명단에서 지울까요? (이미 쓴 보고서 기록은 남지만 이 학생은 더 이상 로그인할 수 없습니다)')) return;
   call('rosterDelete', [[id]], function(){ RO = RO.filter(function(s){ return s.id !== id; }); renderRoster(); });
+}
+function roDelSel(){
+  var ids = Object.keys(ROSEL); if (!ids.length) return;
+  if (!confirm('선택한 ' + ids.length + '명을 명단에서 지울까요?\n\n이 학생들은 더 이상 로그인할 수 없고, 이미 쓴 보고서 기록은 남아 있습니다. 되돌릴 수 없습니다.')) return;
+  if (ids.length >= 5 && prompt('확인을 위해 삭제할 인원수(' + ids.length + ')를 숫자로 입력하세요') !== String(ids.length)){ alert('숫자가 맞지 않아 삭제하지 않았습니다.'); return; }
+  call('rosterDelete', [ids], function(n){
+    var set = {}; ids.forEach(function(i){ set[i] = 1; });
+    RO = RO.filter(function(s){ return !set[s.id]; }); ROSEL = {};
+    alert(n + '명을 삭제했습니다.'); renderRoster();
+  });
 }
 function roCsv(){
   var rows = [['학번', '별칭', '개인코드', '활동']].concat(RO.map(function(s){ return [s.id, s.name, s.code, s.acts]; }));
