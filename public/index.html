@@ -525,7 +525,7 @@ function printDoc(){
 
 // ───────── 로그인 ─────────
 function showLogin(msg){
-  ssDel('tok'); ROLE = ''; TOKEN = ''; MODE = ''; DOC = null;
+  ssDel('tok'); ROLE = ''; TOKEN = ''; MODE = ''; DOC = null; ROSEL = {}; RO = []; OV = []; FILTER = ''; ROFILTER = '';
   $('btnOut').style.display = 'none'; $('tb').style.display = 'none'; setStatus('');
   $('title').textContent = '〈화법과 언어〉 자율 탐구';
   $('root').innerHTML =
@@ -786,7 +786,7 @@ function markGuide(){
 var RO = [], ROFILTER = '';
 function openRoster(){
   MODE = ''; DOC = null; $('tb').style.display = 'none'; setStatus('불러오는 중…');
-  call('rosterList', [], function(list){ RO = list; setStatus(''); renderRoster(); });
+  call('rosterList', [], function(list){ RO = list; pruneSel(); setStatus(''); renderRoster(); });
 }
 var ROSEL = {};
 function classKey(id){ return /^\d{5}$/.test(id) ? id.slice(0, 3) : '기타'; }
@@ -803,7 +803,7 @@ function setRoFilter(k){ ROFILTER = k; renderRoster(); }
 function setOvFilter(k){ FILTER = k; renderOverview(); }
 function renderRoster(){
   var list = RO.filter(function(s){ return !ROFILTER || classKey(s.id) === ROFILTER; });
-  var selN = Object.keys(ROSEL).length;
+  pruneSel(); var selN = Object.keys(ROSEL).length;
   var allOn = list.length > 0 && list.every(function(s){ return ROSEL[s.id]; });
   var h = teacherTabs('roster') +
     '<div class="card noprint"><b>학생 등록</b>' +
@@ -824,6 +824,8 @@ function renderRoster(){
   h += '</table></div></div>';
   $('root').innerHTML = h;
 }
+// 명단에 없는 학번(다른 교사 계정에서 선택했던 것, 삭제된 학생 등)은 선택에서 뺌
+function pruneSel(){ var ok = {}; RO.forEach(function(s){ ok[s.id] = 1; }); Object.keys(ROSEL).forEach(function(k){ if (!ok[k]) delete ROSEL[k]; }); }
 function roSel(id, on){ if (on) ROSEL[id] = 1; else delete ROSEL[id]; renderRoster(); }
 function roSelAll(on){
   RO.filter(function(s){ return !ROFILTER || classKey(s.id) === ROFILTER; }).forEach(function(s){ if (on) ROSEL[s.id] = 1; else delete ROSEL[s.id]; });
@@ -833,6 +835,7 @@ function roSelAll(on){
 // ───────── 개인 코드지 인쇄 (A4 한 장에 6장 또는 8장) ─────────
 var CARDN = 8;
 function showCards(){
+  pruneSel();
   var sel = RO.filter(function(s){ return ROSEL[s.id]; });
   if (!sel.length){ alert('코드지를 뽑을 학생을 먼저 체크해 주세요.'); return; }
   var per = CARDN, url = location.origin, pages = [];
