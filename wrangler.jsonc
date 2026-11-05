@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  // 이 이름이 Cloudflare 대시보드의 Worker 이름과 같아야 합니다.
+  "name": "jayul-tamgu",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-05",
+
+  // 화면(HTML)은 정적 파일로 바로 제공하고, /api/* 만 Worker가 처리합니다.
+  "assets": {
+    "directory": "./public",
+    "run_worker_first": ["/api/*"]
+  },
+
+  // D1 데이터베이스: ID를 비워 두면 배포할 때 Cloudflare가 자동으로 만들어 연결합니다.
+  // DB   : 명단·양식·문서·이력·스냅샷
+  // IMG0~2: 이미지 (반 번호를 3으로 나눈 나머지로 나누어 저장 → 무료 용량 500MB x 3)
+  "d1_databases": [
+    { "binding": "DB" },
+    { "binding": "IMG0" },
+    { "binding": "IMG1" },
+    { "binding": "IMG2" }
+  ],
+
+  "observability": { "enabled": true }
+}

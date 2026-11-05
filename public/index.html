@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'맑은 고딕','Malgun Gothic',sans-serif;color:#222;background:#eceef2;font-size:15px}
+  header{background:#2f4b7c;color:#fff;padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  header h1{font-size:16px;margin:0;flex:1}
+  header button{background:#fff;color:#2f4b7c;border:0;border-radius:6px;padding:6px 10px;cursor:pointer}
+  .status{font-size:13px;opacity:.9}
+  main{max-width:1000px;margin:0 auto;padding:12px}
+  .card{background:#fff;border-radius:10px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .login{max-width:380px;margin:40px auto}
+  .tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+  .tabs button{flex:1;padding:8px;border:1px solid #bbb;background:#fff;border-radius:6px;cursor:pointer;font:inherit}
+  .tabs button.on{background:#2f4b7c;color:#fff;border-color:#2f4b7c}
+  label{display:block;font-weight:bold;margin:12px 0 4px}
+  input[type=text],input[type=password],select{width:100%;padding:8px;border:1px solid #bbb;border-radius:6px;font:inherit}
+  .btn{background:#2f4b7c;color:#fff;border:0;border-radius:6px;padding:8px 13px;cursor:pointer;font:inherit}
+  .btn.sub{background:#e8ebf2;color:#2f4b7c}
+  .btn:disabled{opacity:.5}
+  .err{color:#c0392b;margin-top:8px;white-space:pre-wrap}
+  .note{background:#fff8e1;border:1px solid #f0d98a;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:10px}
+  .small{font-size:12px;color:#666}
+
+  /* 도구 막대 */
+  .tb{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid #ccd;padding:6px 8px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+  .tb button,.tb select{border:1px solid #bbc;background:#f7f8fb;border-radius:5px;padding:5px 8px;cursor:pointer;font:inherit;font-size:13px;min-width:32px}
+  .tb button:hover{background:#e6ebf6}
+  .tb button.primary{background:#2f4b7c;color:#fff;border-color:#2f4b7c;font-weight:bold}
+  .tb button.primary:hover{background:#244069}
+  #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#2f4b7c;color:#fff;padding:10px 18px;border-radius:20px;z-index:99;display:none;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+  .tb .sep{width:1px;height:22px;background:#ccd;margin:0 4px}
+  .tb select{width:auto}
+
+  /* 문서(양식) */
+  .page{background:#fff;max-width:900px;margin:0 auto;padding:22px 26px;box-shadow:0 1px 4px rgba(0,0,0,.15);min-height:400px}
+  .doc{font-size:14px;line-height:1.55;outline:none}
+  .doc h1{font-size:19px;margin:0 0 6px;text-align:center}
+  .doc h2{font-size:16px;margin:14px 0 6px;text-align:center}
+  .doc h3{font-size:14.5px;margin:16px 0 4px}
+  .doc p{margin:3px 0}
+  .doc .idline{text-align:right;margin-bottom:6px}
+  .doc .guide{color:#777;font-size:12.5px;margin:2px 0 4px}
+  .doc table{border-collapse:collapse;width:100%;table-layout:fixed;margin:0}
+  .doc table.f td,.doc table.f th{border:1px solid #666;padding:5px 7px;vertical-align:top;word-break:break-all;overflow-wrap:anywhere}
+  .doc table.f.hdr{margin-top:6px}
+  .doc table.f[data-rep]{margin-top:-1px}
+  .doc td.lab{background:#eef0f4;font-weight:bold;font-size:13px}
+  .doc td.lab.c{text-align:center;vertical-align:middle}
+  .doc td.hd{background:#dde2ec;font-weight:bold;text-align:center}
+  .doc table.in td{border:1px solid #999;font-size:12.5px}
+  .doc table.ut{margin:6px 0}
+  .doc table.ut td{border:1px solid #666;padding:4px 6px;min-width:40px}
+  .doc a{color:#1a56c4;text-decoration:underline}
+  .doc img{max-width:100%;height:auto;vertical-align:middle}
+  .doc .cb{cursor:pointer;font-weight:bold;user-select:none}
+  .doc .inl{display:inline-block;min-width:36px;border-bottom:1px solid #666;text-align:center;padding:0 4px}
+  .doc [data-ans]{min-height:2.3em}
+  .doc div[data-ans].big{min-height:260px}
+  .doc [data-ans]:empty::before{content:attr(data-ph);color:#aaa;pointer-events:none}
+  .doc.student [data-ans]{background:#f3f7ff;cursor:text;box-shadow:inset 0 0 0 1.5px #a9bde8;border-radius:3px}
+  .doc.student div[data-ans]{padding:6px 8px;margin-top:4px}
+  .doc.student td[data-ans]{padding:6px 8px}
+  .doc.student [data-ans]:focus{outline:2px solid #3f6fd6;background:#fff;box-shadow:none}
+  .doc.student [data-ans]:empty:not([data-ph]):not(.inl)::before{content:'✎ 여기를 눌러 쓰세요';color:#8fa3cf}
+  .doc.student .inl{box-shadow:inset 0 -2px 0 #6c8cd5;border-radius:0;min-width:48px}
+  .doc.view [data-ans]:empty::before{content:''}
+  .doc.tpl [data-ans]{background:#fffbe0;outline:1px dashed #d0b24a}
+  .doc.tpl [data-rep]{outline:2px solid #6ab07c;outline-offset:-2px}
+  .doc.tpl{outline:1px dashed #99a;padding:2px}
+  .doc mark.pasted{background:none;color:inherit}
+  .doc.view .pasted{background:#ffd9d6}
+  .doc .bar{margin:6px 0 10px;display:flex;gap:8px}
+  .doc .bar button{border:1px solid #6c8cd5;background:#eef3ff;color:#2f4b7c;border-radius:6px;padding:6px 12px;cursor:pointer;font:inherit;font-size:13px}
+
+  /* 교사 */
+  table.ov{border-collapse:collapse;width:100%}
+  table.ov th,table.ov td{border:1px solid #ccc;padding:5px;font-size:13px;text-align:center}
+  table.ov th{background:#eee}
+  table.ov td.n{text-align:left;white-space:nowrap}
+  .cell{cursor:pointer}.cell:hover{background:#eef3ff}
+  .warn{background:#fdecea}
+  .badge{display:inline-block;background:#c0392b;color:#fff;border-radius:10px;padding:1px 7px;font-size:12px}
+  .badge.ok{background:#888}
+  .pasterow{background:#fdecea}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;overflow:auto;padding:20px}
+  .modal .box{background:#fff;max-width:940px;margin:0 auto;border-radius:10px;padding:14px}
+  @media print{
+    @page{size:A4;margin:14mm}
+    header,.tb,.noprint,.bar,.note,.tabs,#toast{display:none!important}
+    body{background:#fff}main{padding:0;max-width:none}
+    .page{box-shadow:none;padding:0;margin:0;max-width:none;min-height:0}
+    .doc{font-size:12px}
+    .doc.view .pasted,.doc mark.pasted{background:none!important}
+    .doc.student [data-ans],.doc.tpl [data-ans]{background:none!important;box-shadow:none!important;outline:none!important}
+    .doc [data-ans]:empty::before{content:''!important}
+    .doc div[data-ans].big{min-height:200px}
+    .doc td.lab,.doc td.hd{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .doc table tr{page-break-inside:avoid}
+    .doc a{color:#000}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">〈화법과 언어〉 자율 탐구</h1>
+  <span class="status" id="status"></span>
+  <button id="btnOut" style="display:none" onclick="logout()">나가기</button>
+</header>
+<div id="tb" class="tb" style="display:none"></div>
+<main id="root"></main>
+<div id="modal" class="modal" style="display:none"></div>
+<div id="toast"></div>
+
+<script>
+var TOKEN = '', ROLE = '', MODE = '';           // MODE: student / tpl / view
+var DOC = null;                                   // 현재 편집 중인 문서 요소
+var S = { act:'', ver:0, dirty:false, saving:false, timer:null, pend:[] };
+var IMGC = {};                                    // 이미지 캐시
+var LASTRANGE = null, INTERNAL = '', DRAGINT = false;
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function ssGet(k){ try { return sessionStorage.getItem(k); } catch(e){ return null; } }
+function ssSet(k, v){ try { sessionStorage.setItem(k, v); } catch(e){} }
+function ssDel(k){ try { sessionStorage.removeItem(k); } catch(e){} }
+function setStatus(t){ $('status').textContent = t || ''; }
+function api(name, args, body, ctype){
+  var hd = {}; if (TOKEN) hd.Authorization = 'Bearer ' + TOKEN;
+  if (ctype) hd['Content-Type'] = ctype; else if (!body) hd['Content-Type'] = 'application/json';
+  return fetch('/api/' + name, { method:'POST', headers:hd, body: body || JSON.stringify(args || []), cache:'no-store' })
+    .then(function(r){ return r.json().catch(function(){ return { ok:false, error:'서버 응답을 읽지 못했습니다.' }; }); })
+    .catch(function(){ return { ok:false, error:'인터넷 연결을 확인해 주세요.', net:true }; });
+}
+function call(name, args, ok, ng){
+  api(name, args).then(function(j){
+    if (j.ok) { ok && ok(j.r); return; }
+    var m = j.error || '오류';
+    if (m === 'AUTH'){ logout(true); return; }
+    (ng || function(x){ alert(x); })(m);
+  });
+}
+function fmt(ms){
+  if (!ms) return '';
+  var d = new Date(Number(ms) + 9 * 3600000), p = function(n){ return (n < 10 ? '0' : '') + n; };
+  return d.getUTCFullYear() + '-' + p(d.getUTCMonth() + 1) + '-' + p(d.getUTCDate()) + ' ' + p(d.getUTCHours()) + ':' + p(d.getUTCMinutes()) + ':' + p(d.getUTCSeconds());
+}
+
+// ───────── 안전한 HTML 걸러내기 ─────────
+var OK_TAGS = {DIV:1,SPAN:1,P:1,BR:1,B:1,STRONG:1,I:1,EM:1,U:1,S:1,SUB:1,SUP:1,SMALL:1,TABLE:1,TBODY:1,THEAD:1,TR:1,TD:1,TH:1,COLGROUP:1,COL:1,UL:1,OL:1,LI:1,H1:1,H2:1,H3:1,H4:1,IMG:1,HR:1,MARK:1,FONT:1,A:1};
+var DROP_TAGS = /^(SCRIPT|STYLE|IFRAME|OBJECT|EMBED|LINK|META|FORM|INPUT|BUTTON|TEXTAREA|SELECT|SVG|MATH|BASE|NOSCRIPT)$/;
+var OK_ATTR = {colspan:1,rowspan:1,'data-ans':1,'data-ph':1,'data-rep':1,'data-label':1,'data-num':1,'data-img':1};
+var OK_CLASS = {lab:1,hd:1,c:1,guide:1,cb:1,f:1,hdr:1,'in':1,ut:1,pasted:1,inl:1,big:1};
+var OK_CSS = {'color':1,'background-color':1,'font-size':1,'font-weight':1,'font-style':1,'text-align':1,'text-decoration':1,'width':1,'height':1,'min-height':1,'max-width':1,'vertical-align':1,'line-height':1};
+function cleanStyle(s){
+  return String(s).split(';').map(function(d){
+    var i = d.indexOf(':'); if (i < 0) return '';
+    var p = d.slice(0,i).trim().toLowerCase(), v = d.slice(i+1).trim();
+    if (!OK_CSS[p] || /url\(|expression|javascript|@import|\\|<|>/i.test(v)) return '';
+    return p + ':' + v;
+  }).filter(Boolean).join(';');
+}
+function sanitize(html){
+  var src = new DOMParser().parseFromString('<body>' + html + '</body>', 'text/html').body;
+  var out = document.createElement('div');
+  (function walk(s, d){
+    for (var n = s.firstChild; n; n = n.nextSibling){
+      if (n.nodeType === 3){ d.appendChild(document.createTextNode(n.nodeValue)); continue; }
+      if (n.nodeType !== 1) continue;
+      var t = n.tagName;
+      if (DROP_TAGS.test(t)) continue;
+      if (!OK_TAGS[t]){ walk(n, d); continue; }
+      if (t === 'IMG' && !n.getAttribute('data-img')) continue;
+      var e = document.createElement(t.toLowerCase());
+      for (var i = 0; i < n.attributes.length; i++){
+        var a = n.attributes[i].name.toLowerCase(), v = n.attributes[i].value;
+        if (OK_ATTR[a]) e.setAttribute(a, v);
+        else if (a === 'href' && t === 'A' && /^https?:\/\/[^\s"'<>]+$/i.test(v.trim())) e.setAttribute('href', v.trim());
+        else if (a === 'class'){ var c = v.split(/\s+/).filter(function(x){ return OK_CLASS[x]; }).join(' '); if (c) e.setAttribute('class', c); }
+        else if (a === 'style'){ var st = cleanStyle(v); if (st) e.setAttribute('style', st); }
+      }
+      if (t === 'A'){
+        if (!e.getAttribute('href')){ walk(n, d); continue; }
+        e.setAttribute('target', '_blank'); e.setAttribute('rel', 'noopener noreferrer');
+      }
+      walk(n, e); d.appendChild(e);
+    }
+  })(src, out);
+  return out.innerHTML;
+}
+
+// ───────── 문서 만들기·저장용 변환 ─────────
+function mountDoc(el, html, mode){
+  el.className = 'doc ' + mode;
+  el.innerHTML = sanitize(html);
+  el.removeAttribute('contenteditable');
+  if (mode === 'student'){
+    [].forEach.call(el.querySelectorAll('[data-ans]'), function(a){ a.setAttribute('contenteditable', 'true'); });
+  } else if (mode === 'tpl'){
+    el.setAttribute('contenteditable', 'true');
+  }
+  hydrate(el); renumber(el);
+  if (mode === 'student') refreshBars(el);
+}
+function hydrate(el){
+  [].forEach.call(el.querySelectorAll('img[data-img]'), function(img){
+    var id = img.getAttribute('data-img');
+    if (IMGC[id]){ img.src = IMGC[id]; return; }
+    call('getImage', [{id:id}], function(d){ var u = 'data:' + d.mime + ';base64,' + d.data; IMGC[id] = u; img.src = u; }, function(){ img.alt = '(이미지를 불러오지 못했습니다)'; });
+  });
+}
+function renumber(el){
+  var g = {};
+  [].forEach.call(el.querySelectorAll('table[data-rep]'), function(t){
+    var k = t.getAttribute('data-rep'); g[k] = (g[k] || 0) + 1;
+    [].forEach.call(t.querySelectorAll('[data-num]'), function(c){ c.textContent = g[k]; });
+  });
+}
+function serialize(el){
+  var c = el.cloneNode(true);
+  [].forEach.call(c.querySelectorAll('.bar'), function(x){ x.remove(); });
+  [].forEach.call(c.querySelectorAll('img'), function(i){
+    if (i.getAttribute('data-up')) i.remove();
+    else if (i.getAttribute('data-img')) i.removeAttribute('src');
+  });
+  [].forEach.call(c.querySelectorAll('[contenteditable]'), function(x){ x.removeAttribute('contenteditable'); });
+  return c.innerHTML;
+}
+function ansLen(el){
+  var n = 0;
+  [].forEach.call(el.querySelectorAll('[data-ans]'), function(a){ n += (a.textContent || '').replace(/\s/g, '').length; });
+  return n;
+}
+function cleanEmpty(a){
+  if (a && a.hasAttribute && a.hasAttribute('data-ans') && !(a.textContent || '').trim() && !a.querySelector('img,table')) a.innerHTML = '';
+}
+
+// ───────── 반복 칸(＋ 문장 추가) ─────────
+function refreshBars(el){
+  [].forEach.call(el.querySelectorAll('.bar'), function(x){ x.remove(); });
+  var groups = {}, order = [];
+  [].forEach.call(el.querySelectorAll('table[data-rep]'), function(t){
+    var k = t.getAttribute('data-rep'); if (!groups[k]){ groups[k] = []; order.push(k); } groups[k].push(t);
+  });
+  order.forEach(function(k){
+    var ts = groups[k], last = ts[ts.length - 1];
+    var bar = document.createElement('div'); bar.className = 'bar'; bar.setAttribute('contenteditable', 'false');
+    var b1 = document.createElement('button'); b1.type = 'button'; b1.textContent = last.getAttribute('data-label') || '＋ 칸 추가';
+    b1.onclick = function(){ addBlock(k); };
+    var b2 = document.createElement('button'); b2.type = 'button'; b2.textContent = '－ 마지막 칸 지우기';
+    b2.onclick = function(){ delBlock(k); };
+    bar.appendChild(b1); if (ts.length > 1) bar.appendChild(b2);
+    last.parentNode.insertBefore(bar, last.nextSibling);
+  });
+}
+function addBlock(k){
+  var ts = DOC.querySelectorAll('table[data-rep="' + k + '"]'), last = ts[ts.length - 1];
+  var c = last.cloneNode(true);
+  [].forEach.call(c.querySelectorAll('[data-ans]'), function(a){ a.innerHTML = ''; a.removeAttribute('data-ph'); a.setAttribute('contenteditable', 'true'); });
+  last.parentNode.insertBefore(c, last.nextSibling);
+  renumber(DOC); refreshBars(DOC); markDirty();
+}
+function delBlock(k){
+  var ts = DOC.querySelectorAll('table[data-rep="' + k + '"]'); if (ts.length < 2) return;
+  var last = ts[ts.length - 1];
+  if (ansLen(last) > 0 && !confirm('마지막 칸에 쓴 내용이 있습니다. 지울까요?')) return;
+  last.remove(); renumber(DOC); refreshBars(DOC); markDirty();
+}
+
+// ───────── 서식·표·이미지 도구 ─────────
+function inEdit(){
+  var sel = window.getSelection(); if (!sel.rangeCount || !DOC) return null;
+  var n = sel.anchorNode; if (!n) return null;
+  if (n.nodeType === 3) n = n.parentNode;
+  if (!DOC.contains(n)) return null;
+  if (MODE === 'student') return n.closest('[data-ans]') ? n : null;
+  return MODE === 'tpl' ? n : null;
+}
+function cmd(c, v){
+  if (!inEdit()){ alert('글을 쓰는 칸을 먼저 눌러 주세요.'); return; }
+  document.execCommand('styleWithCSS', false, true);
+  document.execCommand(c, false, v == null ? null : v);
+  edited();
+}
+function edited(){ if (MODE === 'student') markDirty(); }
+function curCell(){ var n = inEdit(); return n ? n.closest('td,th') : null; }
+function ownTable(cell){ return cell ? cell.closest('table') : null; }
+function userTable(cell){
+  // 학생은 직접 넣은 표(.ut)만 줄·칸을 바꿀 수 있음
+  var t = ownTable(cell);
+  if (MODE === 'student'){ while (t && !t.classList.contains('ut')) t = t.parentNode.closest ? t.parentNode.closest('table') : null; }
+  return t;
+}
+function tableOp(op){
+  var cell = curCell(); if (!cell){ alert('표 안의 칸을 먼저 눌러 주세요.'); return; }
+  var t = userTable(cell);
+  if (!t){ alert(MODE === 'student' ? '직접 넣은 표에서만 줄·칸을 바꿀 수 있어요.' : '표 안의 칸을 먼저 눌러 주세요.'); return; }
+  cell = cell.closest('table') === t ? cell : (function(){ var c = cell; while (c && c.closest('table') !== t) c = c.parentNode.closest('td,th'); return c; })();
+  if (!cell) return;
+  var row = cell.parentNode, ci = cell.cellIndex;
+  if (op === 'addRow'){
+    var nr = row.cloneNode(true);
+    [].forEach.call(nr.children, function(td){ if (MODE === 'student' || td.hasAttribute('data-ans')) td.innerHTML = '<br>'; });
+    row.parentNode.insertBefore(nr, row.nextSibling);
+  } else if (op === 'delRow'){
+    if (t.rows.length < 2){ alert('마지막 줄은 지울 수 없어요.'); return; }
+    row.remove();
+  } else if (op === 'addCol'){
+    [].forEach.call(t.rows, function(r){
+      var ref = r.cells[ci] || r.cells[r.cells.length - 1]; if (!ref) return;
+      var nc = document.createElement(ref.tagName.toLowerCase()); nc.innerHTML = '<br>';
+      if (ref.className && MODE !== 'student') nc.className = ref.className;
+      r.insertBefore(nc, ref.nextSibling);
+    });
+  } else if (op === 'delCol'){
+    if (row.cells.length < 2){ alert('마지막 칸은 지울 수 없어요.'); return; }
+    [].forEach.call(t.rows, function(r){ if (r.cells[ci]) r.cells[ci].remove(); });
+  }
+  edited();
+}
+function insertTable(){
+  if (!inEdit()){ alert('글을 쓰는 칸을 먼저 눌러 주세요.'); return; }
+  var r = parseInt(prompt('줄 수 (1~15)', '3'), 10), c = parseInt(prompt('칸 수 (1~8)', '3'), 10);
+  if (!(r > 0 && r <= 15 && c > 0 && c <= 8)) return;
+  var h = '<table class="ut"><tbody>';
+  for (var i = 0; i < r; i++){ h += '<tr>'; for (var j = 0; j < c; j++) h += '<td><br></td>'; h += '</tr>'; }
+  h += '</tbody></table><p><br></p>';
+  document.execCommand('insertHTML', false, h); edited();
+}
+function pickImage(){
+  var n = inEdit();
+  if (!n && LASTRANGE && DOC && DOC.contains(LASTRANGE.startContainer)){
+    var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(LASTRANGE); n = inEdit();
+  }
+  if (!n){ alert('이미지를 넣을 칸을 먼저 눌러 주세요.'); return; }
+  LASTRANGE = window.getSelection().getRangeAt(0).cloneRange();
+  var f = document.createElement('input'); f.type = 'file'; f.accept = 'image/*';
+  f.onchange = function(){ if (f.files && f.files[0]) addImage(f.files[0], LASTRANGE); };
+  f.click();
+}
+function addImage(file, range){
+  if (!/^image\//.test(file.type)){ alert('이미지 파일만 넣을 수 있어요.'); return; }
+  var rd = new FileReader();
+  rd.onload = function(){
+    var im = new Image();
+    im.onload = function(){
+      var max = 1000, w = im.width, h = im.height, k = Math.min(1, max / Math.max(w, h));
+      var cv = document.createElement('canvas'); cv.width = Math.round(w * k); cv.height = Math.round(h * k);
+      var cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height); cx.drawImage(im, 0, 0, cv.width, cv.height);
+      var url = cv.toDataURL('image/jpeg', 0.75);
+      if (range){ var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range); }
+      if (!inEdit()){ alert('이미지를 넣을 칸을 먼저 눌러 주세요.'); return; }
+      var uid = 'u' + Date.now() + Math.floor(Math.random() * 1000);
+      document.execCommand('insertHTML', false, '<img data-up="' + uid + '" src="' + url + '" style="width:60%">');
+      var img = DOC.querySelector('img[data-up="' + uid + '"]');
+      if (!img) return;
+      setStatus('이미지 올리는 중…');
+      api('uploadImage?act=' + encodeURIComponent(S.act || '1'), null, url, 'text/plain').then(function(j){
+        if (!j.ok){ img.remove(); setStatus(''); if (j.error === 'AUTH'){ logout(true); return; } alert('이미지를 올리지 못했습니다: ' + j.error); return; }
+        img.removeAttribute('data-up'); img.setAttribute('data-img', j.r.id); IMGC[j.r.id] = url; setStatus('');
+        edited();
+      });
+      edited();
+    };
+    im.onerror = function(){ alert('이미지를 읽지 못했어요.'); };
+    im.src = rd.result;
+  };
+  rd.readAsDataURL(file);
+}
+// 이미지 클릭 → 크기 바꾸기 (30 → 60 → 100 → 30)
+document.addEventListener('click', function(e){
+  var t = e.target;
+  if (t.tagName === 'IMG' && DOC && DOC.contains(t) && (MODE === 'student' || MODE === 'tpl') && (MODE === 'tpl' || t.closest('[data-ans]'))){
+    var w = parseInt((t.style.width || '60%'), 10); t.style.width = (w <= 30 ? 60 : (w <= 60 ? 100 : 30)) + '%'; edited();
+    return;
+  }
+  var cb = t.closest && t.closest('.cb');
+  if (cb && MODE === 'student' && DOC && DOC.contains(cb)){ cb.textContent = cb.textContent.indexOf('□') >= 0 ? '☑' : '□'; markDirty(); }
+});
+document.addEventListener('selectionchange', function(){
+  var sel = window.getSelection();
+  if (sel.rangeCount && DOC && DOC.contains(sel.anchorNode) && inEdit()) LASTRANGE = sel.getRangeAt(0).cloneRange();
+});
+
+// ───────── 붙여넣기·끌어놓기 기록 (학생) ─────────
+document.addEventListener('copy', function(){ var a = DOC && inEdit(); if (a) INTERNAL = String(window.getSelection()); });
+document.addEventListener('cut', function(){ var a = DOC && inEdit(); if (a) INTERNAL = String(window.getSelection()); });
+document.addEventListener('paste', function(e){
+  if (MODE !== 'student' || !DOC) return;
+  var a = e.target.closest && e.target.closest('[data-ans]'); if (!a || !DOC.contains(a)) return;
+  var cd = e.clipboardData; if (!cd) return;
+  var txt = cd.getData('text/plain') || '';
+  if (txt){
+    e.preventDefault();
+    var internal = (INTERNAL && txt === INTERNAL);
+    if (!internal) S.pend.push({ kind:'paste', len:txt.length, text:txt.slice(0, 2000), ts:Date.now() });
+    var h = esc(txt).replace(/\r?\n/g, '<br>');
+    document.execCommand('insertHTML', false, internal ? h : '<mark class="pasted">' + h + '</mark>');
+    markDirty(); return;
+  }
+  var items = cd.items || [];
+  for (var i = 0; i < items.length; i++){
+    if (items[i].kind === 'file' && /^image\//.test(items[i].type)){
+      e.preventDefault(); addImage(items[i].getAsFile(), null); return;
+    }
+  }
+});
+document.addEventListener('dragstart', function(e){ DRAGINT = !!(DOC && e.target && DOC.contains(e.target)) || !!(DOC && inEdit()); });
+document.addEventListener('dragend', function(){ DRAGINT = false; });
+document.addEventListener('drop', function(e){
+  if (MODE !== 'student' || !DOC) return;
+  var a = e.target.closest && e.target.closest('[data-ans]'); if (!a || !DOC.contains(a)) { if (DOC.contains(e.target)) e.preventDefault(); return; }
+  if (DRAGINT){ DRAGINT = false; return; }
+  e.preventDefault();
+  var dt = e.dataTransfer; if (!dt) return;
+  var r = null;
+  try {
+    if (document.caretRangeFromPoint) r = document.caretRangeFromPoint(e.clientX, e.clientY);
+    else if (document.caretPositionFromPoint){ var p = document.caretPositionFromPoint(e.clientX, e.clientY); r = document.createRange(); r.setStart(p.offsetNode, p.offset); r.collapse(true); }
+  } catch(x){}
+  if (dt.files && dt.files.length && /^image\//.test(dt.files[0].type)){ addImage(dt.files[0], r); return; }
+  var txt = dt.getData('text/plain') || '';
+  if (!txt) return;
+  if (r){ var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r); }
+  S.pend.push({ kind:'drop', len:txt.length, text:txt.slice(0, 2000), ts:Date.now() });
+  document.execCommand('insertHTML', false, '<mark class="pasted">' + esc(txt).replace(/\r?\n/g, '<br>') + '</mark>');
+  markDirty();
+});
+document.addEventListener('input', function(e){
+  if (MODE !== 'student') return;
+  var a = e.target.closest && e.target.closest('[data-ans]'); if (a && DOC.contains(a)) cleanEmpty(a);
+  markDirty();
+});
+document.addEventListener('focusout', function(){ if (MODE === 'student') flush(); });
+document.addEventListener('visibilitychange', function(){ if (document.hidden && MODE === 'student') flush(); });
+window.addEventListener('beforeunload', function(e){ if (MODE === 'student' && (S.dirty || S.saving)){ e.preventDefault(); e.returnValue = ''; } });
+
+// ───────── 자동 저장 (학생) ─────────
+function markDirty(){
+  if (MODE !== 'student') return;
+  S.dirty = true; setStatus('수정 중…');
+  clearTimeout(S.timer); S.timer = setTimeout(flush, 20000);
+}
+function flush(done){
+  clearTimeout(S.timer);
+  if (MODE !== 'student' || !DOC) { if (done) done(); return; }
+  if (S.saving){ S.timer = setTimeout(function(){ flush(done); }, 1200); return; }
+  if (!S.dirty){ if (done) done(); return; }
+  S.saving = true; S.dirty = false; setStatus('저장 중…');
+  var html = serialize(DOC), ev = S.pend.splice(0), act = S.act;
+  call('saveDoc', [act, html, S.ver, { len: ansLen(DOC) }, ev], function(r){
+    S.saving = false;
+    if (r.conflict){
+      S.ver = r.ver; mountDoc(DOC, r.html, 'student');
+      alert('다른 기기에서 먼저 저장한 내용이 있어 그 내용으로 다시 불러왔습니다. 방금 쓴 내용이 사라졌다면 다시 입력해 주세요.');
+      setStatus(''); if (done) done(); return;
+    }
+    S.ver = r.ver; setStatus('저장됨 ' + fmt(r.updated).slice(11));
+    if (S.dirty) flush(done); else if (done) done();
+  }, function(m){
+    S.saving = false; S.dirty = true; S.pend = ev.concat(S.pend);
+    setStatus('저장 실패, 다시 시도합니다…'); clearTimeout(S.timer); S.timer = setTimeout(flush, 15000);
+  });
+}
+
+
+// ───────── 직접 저장 · PDF 저장 ─────────
+var TOASTT = null;
+function toast(msg){
+  var t = $('toast'); t.textContent = msg; t.style.display = 'block';
+  clearTimeout(TOASTT); TOASTT = setTimeout(function(){ t.style.display = 'none'; }, 2500);
+}
+function manualSave(){
+  if (MODE !== 'student' || !DOC) return;
+  if (!S.dirty && !S.saving){ toast('✓ 이미 모두 저장되어 있어요'); return; }
+  setStatus('저장 중…');
+  flush(function(){
+    if (S.dirty || S.saving) { toast('저장하지 못했어요. 잠시 후 다시 눌러 주세요.'); return; }
+    toast('✓ 저장했어요');
+  });
+}
+document.addEventListener('keydown', function(e){
+  if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S') && MODE === 'student'){ e.preventDefault(); manualSave(); }
+});
+function whenImagesReady(cb){
+  var tries = 0;
+  (function chk(){
+    var wait = [].some.call(DOC.querySelectorAll('img'), function(i){ return !i.src || !i.complete; });
+    if (!wait || tries++ > 25){ cb(); return; }
+    setTimeout(chk, 300);
+  })();
+}
+function printDoc(){
+  if (!DOC) return;
+  var go = function(){
+    toast('인쇄 창이 열리면 [PDF로 저장]을 고르세요');
+    whenImagesReady(function(){ setTimeout(function(){ try { window.print(); } catch(e){ alert('이 기기에서는 바로 인쇄 창을 열 수 없어요. 브라우저 메뉴의 [인쇄]를 이용해 주세요.'); } }, 400); });
+  };
+  if (MODE === 'student') flush(go); else go();
+}
+
+// ───────── 로그인 ─────────
+function showLogin(msg){
+  ssDel('tok'); ROLE = ''; TOKEN = ''; MODE = ''; DOC = null;
+  $('btnOut').style.display = 'none'; $('tb').style.display = 'none'; setStatus('');
+  $('title').textContent = '〈화법과 언어〉 자율 탐구';
+  $('root').innerHTML =
+    '<div class="card login"><div class="tabs"><button id="tS" class="on" onclick="tab(\'S\')">학생</button><button id="tT" onclick="tab(\'T\')">교사</button></div>' +
+    '<div id="fS"><label>학번</label><input type="text" id="sid" inputmode="numeric" autocomplete="off">' +
+    '<label>개인 코드</label><input type="password" id="scode" autocomplete="off"></div>' +
+    '<div id="fT" style="display:none"><label>교사 비밀번호</label><input type="password" id="tpw" autocomplete="off"></div>' +
+    '<p><button class="btn" id="goBtn" onclick="doLogin()">들어가기</button></p>' +
+    '<div class="err" id="lerr">' + esc(msg || '') + '</div>' +
+    '<p class="small">내 보고서는 나만 볼 수 있고, 선생님은 작성·수정 과정(붙여넣기 기록 포함)을 확인할 수 있습니다.</p></div>';
+  window.__tab = 'S';
+  ['sid','scode','tpw'].forEach(function(i){ $(i).addEventListener('keydown', function(e){ if (e.key === 'Enter') doLogin(); }); });
+}
+function tab(t){
+  window.__tab = t;
+  $('fS').style.display = t === 'S' ? '' : 'none'; $('fT').style.display = t === 'T' ? '' : 'none';
+  $('tS').className = t === 'S' ? 'on' : ''; $('tT').className = t === 'T' ? 'on' : '';
+}
+function doLogin(){
+  var btn = $('goBtn'); btn.disabled = true; $('lerr').textContent = '';
+  var fail = function(m){ btn.disabled = false; $('lerr').textContent = m; };
+  if (window.__tab === 'S'){
+    call('login', [$('sid').value, $('scode').value], function(r){ TOKEN = r.token; ROLE = 'S'; ssSet('tok', r.token); startStudent(r); }, fail);
+  } else {
+    call('teacherLogin', [$('tpw').value], function(r){ TOKEN = r.token; ROLE = 'T'; ssSet('tok', r.token); startTeacher(); }, fail);
+  }
+}
+function logout(expired){
+  var go = function(){ showLogin(expired ? '로그인이 만료되었습니다. 다시 들어와 주세요.' : ''); };
+  if (MODE === 'student' && !expired) flush(go); else go();
+}
+
+// ───────── 학생 화면 ─────────
+function studentToolbar(){
+  return '<button class="primary" onclick="manualSave()" title="지금 바로 저장 (Ctrl+S)">💾 저장</button><span class="sep"></span><button onclick="cmd(\'bold\')"><b>B</b></button><button onclick="cmd(\'italic\')"><i>I</i></button><button onclick="cmd(\'underline\')"><u>U</u></button>' +
+    '<select onchange="if(this.value){cmd(\'foreColor\',this.value);} this.selectedIndex=0"><option value="">글자색</option><option value="#000000">검정</option><option value="#c0392b">빨강</option><option value="#1f5fbf">파랑</option><option value="#1e8449">초록</option></select>' +
+    '<button onclick="cmd(\'hiliteColor\',\'#fff176\')">형광펜</button><button onclick="cmd(\'hiliteColor\',\'transparent\')">형광펜 지우기</button>' +
+    '<span class="sep"></span><button onclick="cmd(\'insertUnorderedList\')">• 목록</button><button onclick="cmd(\'insertOrderedList\')">1. 목록</button>' +
+    '<button onclick="cmd(\'justifyLeft\')">왼쪽</button><button onclick="cmd(\'justifyCenter\')">가운데</button>' +
+    '<span class="sep"></span><button onclick="insertTable()">표 넣기</button><button onclick="tableOp(\'addRow\')">줄＋</button><button onclick="tableOp(\'delRow\')">줄－</button><button onclick="tableOp(\'addCol\')">칸＋</button><button onclick="tableOp(\'delCol\')">칸－</button>' +
+    '<span class="sep"></span><button onclick="pickImage()">이미지 넣기</button>' +
+    '<span class="sep"></span><button onclick="cmd(\'undo\')">↶ 되돌리기</button><button onclick="cmd(\'redo\')">↷ 다시</button>' +
+    '<span class="sep"></span><button onclick="printDoc()" title="내 보고서를 PDF로 저장">📄 PDF로 저장</button>';
+}
+function startStudent(r){
+  $('btnOut').style.display = ''; $('title').textContent = '자율 탐구 · ' + r.name;
+  var acts = r.acts.split('').filter(Boolean);
+  if (!acts.length){
+    $('root').innerHTML = '<div class="card"><h3 style="margin-top:0">아직 활동이 지정되지 않았어요</h3><p>선생님이 내가 할 활동(활동 1 또는 활동 2)을 지정하면 이 화면에 보고서 양식이 나타납니다. 선생님께 말씀드려 주세요.</p></div>';
+    return;
+  }
+  MODE = 'student';
+  var tbEl = $('tb'); tbEl.style.display = 'flex'; tbEl.innerHTML = studentToolbar();
+  [].forEach.call(tbEl.querySelectorAll('button,select'), function(b){ b.addEventListener('mousedown', function(e){ if (e.target.tagName !== 'SELECT') e.preventDefault(); }); });
+  var tabs = acts.length > 1 ? '<div class="tabs">' + acts.map(function(a){ return '<button id="at' + a + '" onclick="openAct(\'' + a + '\')">활동 ' + a + ' 보고서</button>'; }).join('') + '</div>' : '';
+  $('root').innerHTML = tabs + '<div class="note">연한 파란색 칸에 글을 쓰세요. 칸을 누르면 파란 테두리가 진해집니다. 회색 글자는 안내문과 예시이고, 파란 칸에만 쓸 수 있어요. 내용은 자동으로 저장됩니다. 다른 곳에서 복사해 붙여넣으면 그 기록이 선생님께 보입니다. 내 말로 직접 쓰고, 자료의 문장은 원문 칸에만 옮겨 적으세요. 이미지는 [이미지 넣기]나 붙여넣기(캡처)로 넣을 수 있어요.</div><div class="page"><div id="doc"></div></div>';
+  DOC = $('doc');
+  openAct(acts[0]);
+}
+function openAct(a){
+  var go = function(){
+    S.act = a; S.ver = 0; S.dirty = false; S.pend = [];
+    [].forEach.call(document.querySelectorAll('.tabs button'), function(b){ b.className = b.id === 'at' + a ? 'on' : ''; });
+    setStatus('불러오는 중…');
+    call('getDoc', [a], function(r){
+      S.ver = r.ver; mountDoc(DOC, r.html, 'student'); setStatus(r.isNew ? '' : '불러옴 ' + fmt(r.upd).slice(5, 16));
+    });
+  };
+  if (S.dirty || S.saving) flush(go); else go();
+}
+
+// ───────── 교사 화면 ─────────
+var OV = [], VIEWACT = '1', FILTER = '';
+function teacherTabs(cur){
+  return '<div class="tabs noprint"><button class="' + (cur === 'ov' ? 'on' : '') + '" onclick="loadOverview()">학생 현황·활동 지정</button>' +
+    '<button class="' + (cur === 'roster' ? 'on' : '') + '" onclick="openRoster()">명단·개인 코드</button>' +
+    '<button class="' + (cur === 'tpl1' ? 'on' : '') + '" onclick="openTpl(\'1\')">활동 1 양식 편집</button>' +
+    '<button class="' + (cur === 'tpl2' ? 'on' : '') + '" onclick="openTpl(\'2\')">활동 2 양식 편집</button></div>';
+}
+function startTeacher(){
+  $('btnOut').style.display = ''; $('title').textContent = '자율 탐구 · 교사 화면';
+  loadOverview();
+}
+function loadOverview(){
+  MODE = ''; DOC = null; $('tb').style.display = 'none';
+  setStatus('불러오는 중…');
+  call('teacherOverview', [], function(list){ OV = list; setStatus(''); renderOverview(); });
+}
+function actLabel(a){ return a === '12' ? '활동 1·2' : (a ? '활동 ' + a : '미지정'); }
+function renderOverview(){
+  var list = OV.filter(function(s){ return !FILTER || s.id.indexOf(FILTER) === 0; });
+  var h = teacherTabs('ov') + '<div class="card"><p style="margin-top:0"><b>일괄 지정</b> 학번 앞부분 <input type="text" id="flt" value="' + esc(FILTER) + '" placeholder="예: 205 (5반)" style="width:130px;display:inline-block"> ' +
+    '<button class="btn sub" onclick="FILTER=$(\'flt\').value.trim();renderOverview()">걸러 보기</button> 보이는 ' + list.length + '명을 ' +
+    '<select id="bulk" style="width:auto;display:inline-block"><option value="1">활동 1</option><option value="2">활동 2</option><option value="12">활동 1·2 둘 다</option><option value="">미지정</option></select> ' +
+    '<button class="btn" onclick="bulkAct()">으로 지정</button> <button class="btn sub" onclick="loadOverview()">새로고침</button></p>' +
+    '<p class="small">칸을 누르면 학생의 보고서와 수정 이력이 열립니다. 붉은 칸은 붙여넣은 글자 수가 작성 글자 수의 50% 이상인 문서입니다(참고용).</p>' +
+    '<div style="overflow-x:auto"><table class="ov"><tr><th>학번</th><th>별칭</th><th>지정 활동</th><th>활동 1 보고서</th><th>활동 2 보고서</th></tr>';
+  list.forEach(function(s){
+    h += '<tr><td class="n">' + esc(s.id) + '</td><td class="n">' + esc(s.name) + '</td><td><select onchange="setOne(\'' + esc(s.id) + '\',this.value)" style="width:auto">' +
+      ['', '1', '2', '12'].map(function(v){ return '<option value="' + v + '"' + (s.acts === v ? ' selected' : '') + '>' + actLabel(v) + '</option>'; }).join('') + '</select></td>';
+    ['1', '2'].forEach(function(a){
+      var d = s.docs[a];
+      if (!d){ h += '<td style="color:#bbb">' + (s.acts.indexOf(a) >= 0 ? '시작 전' : '-') + '</td>'; return; }
+      var heavy = d.len > 0 && d.paste >= d.len * 0.5 && d.paste >= 30;
+      h += '<td class="cell' + (heavy ? ' warn' : '') + '" onclick="openDoc(\'' + esc(s.id) + '\',\'' + a + '\')">' + d.len + '자' +
+        (d.pcount ? '<br><span class="badge' + (heavy ? '' : ' ok') + '">붙 ' + d.paste + '자/' + d.pcount + '회</span>' : '') +
+        (d.imgs ? ' <span class="small">🖼' + d.imgs + '</span>' : '') +
+        '<br><span class="small">' + esc(fmt(d.upd).slice(5, 16)) + '</span></td>';
+    });
+    h += '</tr>';
+  });
+  h += '</table></div></div>';
+  $('root').innerHTML = h;
+}
+function setOne(id, val){
+  call('setActs', [[id], val], function(){
+    OV.forEach(function(s){ if (s.id === id) s.acts = val; });
+    setStatus('지정했습니다'); setTimeout(function(){ setStatus(''); }, 1500);
+  });
+}
+function bulkAct(){
+  var list = OV.filter(function(s){ return !FILTER || s.id.indexOf(FILTER) === 0; });
+  if (!list.length){ alert('지정할 학생이 없습니다.'); return; }
+  var v = $('bulk').value;
+  if (!confirm(list.length + '명에게 ' + actLabel(v) + '을(를) 지정할까요?')) return;
+  call('setActs', [list.map(function(s){ return s.id; }), v], function(){ loadOverview(); });
+}
+
+function valDoc(){ return DOC; }
+function openDoc(id, act){
+  setStatus('불러오는 중…');
+  call('teacherDoc', [id, act], function(r){
+    setStatus(''); MODE = 'view';
+    var pc = 0, pn = 0; r.hist.forEach(function(x){ if (x[1] === '붙여넣기' || x[1] === '끌어놓기'){ pc += x[2]; pn++; } });
+    var st = OV.filter(function(s){ return s.id === id; })[0] || {};
+    var h = '<div class="noprint"><button class="btn sub" onclick="loadOverview()">← 목록</button> <button class="btn" onclick="window.print()">인쇄 / PDF 저장</button></div>' +
+      '<div class="card noprint" style="margin-top:10px"><b>' + esc(id) + ' ' + esc(r.name || st.name || '') + ' · 활동 ' + act + ' 보고서</b> ' +
+      '<span class="small">최종 수정 ' + esc(fmt(r.updated) || '-') + ' · 저장 ' + r.ver + '회 · 붙여넣기 ' + pc + '자/' + pn + '회</span>' +
+      '<p class="small" style="margin:4px 0 0">붉은 배경 = 학생이 붙여넣거나 끌어다 놓은 글입니다. 학생이 일부 지우거나 고쳤을 수 있고, 문서 안에서 옮긴 글은 표시되지 않습니다.</p></div>' +
+      (r.html ? '<div class="page"><div id="doc"></div></div>' : '<div class="card">아직 작성한 내용이 없습니다.</div>') +
+      '<div class="card noprint" style="margin-top:12px"><h3 style="margin-top:0">수정 이력 (' + r.hist.length + '건)</h3><p class="small">“그때 모습 보기”는 약 2분 간격으로 남긴 화면입니다. 붙여넣기 행에는 붙여넣은 글이 기록됩니다.</p>' +
+      '<div style="overflow-x:auto"><table class="ov"><tr><th>시각</th><th>구분</th><th>글자수/이미지KB</th><th>내용</th></tr>';
+    var hist = r.hist.slice().reverse();
+    hist.forEach(function(x){
+      var isP = x[1] === '붙여넣기' || x[1] === '끌어놓기';
+      h += '<tr class="' + (isP ? 'pasterow' : '') + '"><td style="white-space:nowrap">' + esc(fmt(x[0])) + '</td><td>' + esc(x[1]) + '</td><td>' + x[2] + '</td><td style="text-align:left">' +
+        (isP ? esc(x[3].slice(0, 300)) + (x[3].length > 300 ? '…' : '') : (x[1] === '저장' && x[3] ? '<button class="btn sub" onclick="showSnap(' + x[3] + ')">그때 모습 보기</button>' : '')) + '</td></tr>';
+    });
+    h += '</table></div></div>';
+    $('root').innerHTML = h;
+    if (r.html){ DOC = $('doc'); mountDoc(DOC, r.html, 'view'); }
+    window.scrollTo(0, 0);
+  });
+}
+function showSnap(row){
+  setStatus('불러오는 중…');
+  call('getSnapshot', [row], function(r){
+    setStatus('');
+    var m = $('modal'); m.style.display = 'block';
+    m.innerHTML = '<div class="box"><p><b>' + esc(fmt(r.time)) + ' 시점의 모습</b> <button class="btn sub" onclick="$(\'modal\').style.display=\'none\'">닫기</button></p><div class="page" style="box-shadow:none"><div id="snapdoc"></div></div></div>';
+    var save = DOC; var d = $('snapdoc'); mountDoc(d, r.html, 'view'); DOC = save;
+    m.scrollTop = 0;
+  });
+}
+
+// ───────── 교사: 양식 편집 ─────────
+var TPL_ACT = '';
+function tplToolbar(){
+  return studentToolbar().replace('<button onclick="insertTable()">표 넣기</button>', '<button onclick="insertTable()">표 넣기</button><button onclick="dupTable()">표 복제</button>') +
+    '<span class="sep"></span>' +
+    '<select onchange="if(this.value){cmd(\'formatBlock\',this.value);} this.selectedIndex=0"><option value="">문단 모양</option><option value="h2">큰 제목</option><option value="h3">소제목</option><option value="p">본문</option></select>' +
+    '<span class="sep"></span><button onclick="toggleAns()" title="커서가 있는 칸을 학생이 쓰는 칸으로 지정하거나 해제">작성 칸 지정/해제</button>' +
+    '<button onclick="addAnsDiv()" title="커서 위치에 학생이 쓰는 빈 칸을 넣음">작성 칸 넣기</button>' +
+    '<button onclick="setPh()" title="학생이 쓰는 칸에 회색 안내문(예시)을 설정">회색 안내문</button>' +
+    '<button onclick="toggleRep()" title="표를 [＋ 추가] 버튼으로 늘릴 수 있는 반복 칸으로 지정">반복 칸 지정/해제</button>' +
+    '<button onclick="markGuide()" title="선택한 문단을 회색 작은 안내 글자로">안내 글자</button>' +
+    '<span class="sep"></span><button onclick="addLink()" title="글자를 드래그해서 선택한 뒤 누르면 하이퍼링크를 겁니다">🔗 링크 걸기</button><button onclick="cmd(\'unlink\')">링크 풀기</button>';
+}
+function openTpl(act){
+  MODE = ''; TPL_ACT = act; setStatus('불러오는 중…');
+  call('getTemplate', [act], function(r){
+    setStatus('');
+    $('root').innerHTML = teacherTabs('tpl' + act) +
+      '<div class="note"><b>활동 ' + act + ' 양식 편집</b> — 노란 점선 칸이 학생이 쓰는 칸이고, 초록 테두리 표는 [＋ 추가] 버튼으로 늘어나는 반복 칸입니다. 글자, 표, 이미지를 자유롭게 고치고 맨 위 [양식 저장]을 누르세요. ' +
+      '<b>이미 쓰기 시작한 학생의 문서에는 반영되지 않고</b>, 아직 시작하지 않은 학생부터 새 양식이 적용됩니다. <code>{{반}}</code>·<code>{{번}}</code>은 학번에서 자동으로 채워집니다.</div>' +
+      '<p class="noprint"><button class="btn" onclick="saveTpl()">양식 저장</button> <button class="btn sub" onclick="resetTpl()">처음 양식으로 되돌리기</button></p>' +
+      '<div class="page"><div id="doc"></div></div>';
+    DOC = $('doc'); MODE = 'tpl'; mountDoc(DOC, r.html, 'tpl');
+    var tbEl = $('tb'); tbEl.style.display = 'flex'; tbEl.innerHTML = tplToolbar();
+    [].forEach.call(tbEl.querySelectorAll('button,select'), function(b){ b.addEventListener('mousedown', function(e){ if (e.target.tagName !== 'SELECT') e.preventDefault(); }); });
+    window.scrollTo(0, 0);
+  });
+}
+function saveTpl(){
+  var html = serialize(DOC); setStatus('저장 중…');
+  call('saveTemplate', [TPL_ACT, html], function(r){ setStatus('양식 저장됨 ' + fmt(r.updated).slice(11)); alert('양식을 저장했습니다.'); });
+}
+function resetTpl(){
+  if (!confirm('이 활동의 양식을 기본 상태로 되돌릴까요? (저장 전까지는 화면에서만 바뀝니다)')) return;
+  call('defaultTemplate', [TPL_ACT], function(r){ mountDoc(DOC, r.html, 'tpl'); });
+}
+function selNode(){ var n = window.getSelection().anchorNode; return n ? (n.nodeType === 3 ? n.parentNode : n) : null; }
+function toggleAns(){
+  var n = selNode(); if (!n || !DOC.contains(n)){ alert('먼저 칸 안을 눌러 주세요.'); return; }
+  var el = n.closest('[data-ans]') || n.closest('td,th') || n.closest('div,p');
+  if (!el || el === DOC){ alert('칸 안을 눌러 주세요.'); return; }
+  if (el.hasAttribute('data-ans')) { el.removeAttribute('data-ans'); el.removeAttribute('data-ph'); }
+  else el.setAttribute('data-ans', '');
+}
+function addAnsDiv(){
+  if (!inEdit()){ alert('칸 안을 먼저 눌러 주세요.'); return; }
+  document.execCommand('insertHTML', false, '<div data-ans><br></div>');
+}
+function setPh(){
+  var n = selNode(); var el = n && n.closest('[data-ans]');
+  if (!el){ alert('학생이 쓰는(노란 점선) 칸 안을 먼저 눌러 주세요.'); return; }
+  var v = prompt('칸이 비어 있을 때 회색으로 보일 안내문 (비우면 삭제)', el.getAttribute('data-ph') || '');
+  if (v === null) return;
+  if (v) el.setAttribute('data-ph', v); else el.removeAttribute('data-ph');
+}
+function toggleRep(){
+  var n = selNode(); var t = n && n.closest('table');
+  if (!t || !DOC.contains(t)){ alert('표 안을 먼저 눌러 주세요.'); return; }
+  if (t.hasAttribute('data-rep')){ t.removeAttribute('data-rep'); t.removeAttribute('data-label'); renumber(DOC); return; }
+  var g = prompt('같은 묶음으로 늘어날 표들의 묶음 이름 (영문/숫자, 예: g1)', 'g1'); if (!g) return;
+  g = g.replace(/[^A-Za-z0-9_]/g, '') || 'g1';
+  var label = prompt('추가 버튼에 쓸 글자', '＋ 칸 추가') || '＋ 칸 추가';
+  t.setAttribute('data-rep', g); t.setAttribute('data-label', label);
+  renumber(DOC);
+}
+function dupTable(){
+  var n = selNode(); var t = n && n.closest('table');
+  if (!t || !DOC.contains(t)){ alert('복제할 표 안을 먼저 눌러 주세요.'); return; }
+  var c = t.cloneNode(true); t.parentNode.insertBefore(c, t.nextSibling); renumber(DOC);
+}
+function addLink(){
+  if (!inEdit()){ alert('링크를 걸 글자를 먼저 드래그해서 선택해 주세요.'); return; }
+  if (window.getSelection().isCollapsed){ alert('링크를 걸 글자를 먼저 드래그해서 선택해 주세요.'); return; }
+  var u = prompt('연결할 주소 (예: https://www.korean.go.kr)', 'https://'); if (!u) return;
+  u = u.trim(); if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+  if (!/^https?:\/\/[^\s"'<>]+$/i.test(u)){ alert('주소 형식이 올바르지 않습니다.'); return; }
+  document.execCommand('createLink', false, u);
+  [].forEach.call(DOC.querySelectorAll('a[href]'), function(a){ a.setAttribute('target', '_blank'); a.setAttribute('rel', 'noopener noreferrer'); });
+}
+function markGuide(){
+  if (!inEdit()){ alert('칸 안을 먼저 눌러 주세요.'); return; }
+  var n = selNode(); var p = n.closest('p,div'); if (!p || p === DOC) return;
+  p.classList.toggle('guide');
+}
+
+
+// ───────── 교사: 명단·개인 코드 ─────────
+var RO = [], ROFILTER = '';
+function openRoster(){
+  MODE = ''; DOC = null; $('tb').style.display = 'none'; setStatus('불러오는 중…');
+  call('rosterList', [], function(list){ RO = list; setStatus(''); renderRoster(); });
+}
+function renderRoster(){
+  var list = RO.filter(function(s){ return !ROFILTER || s.id.indexOf(ROFILTER) === 0; });
+  var h = teacherTabs('roster') +
+    '<div class="card noprint"><b>학생 등록</b>' +
+    '<p class="small" style="margin:4px 0">엑셀이나 한글 표에서 <b>학번</b>과 <b>별칭</b>(실명 대신 쓸 이름 또는 번호) 두 열을 복사해서 아래에 붙여넣으세요. 한 줄에 한 명입니다. 학번은 5자리(예: 20507 = 2학년 5반 7번)로 쓰면 반·번호가 양식에 자동으로 채워집니다. 이미 등록된 학번은 별칭만 바뀌고 개인 코드는 그대로입니다.</p>' +
+    '<textarea id="roIn" rows="5" style="width:100%;font:inherit;padding:8px;border:1px solid #bbb;border-radius:6px" placeholder="20501\t가나다\n20502\t라마바"></textarea>' +
+    '<p><button class="btn" onclick="roImport()">등록하고 개인 코드 만들기</button></p></div>' +
+    '<div class="card"><p style="margin-top:0" class="noprint">학번 앞부분 <input type="text" id="roflt" value="' + esc(ROFILTER) + '" placeholder="예: 205 (5반)" style="width:130px;display:inline-block"> ' +
+    '<button class="btn sub" onclick="ROFILTER=$(\'roflt\').value.trim();renderRoster()">걸러 보기</button> ' +
+    '<button class="btn sub" onclick="roCsv()">CSV 내려받기(엑셀용)</button> <button class="btn sub" onclick="window.print()">인쇄</button> 보이는 ' + list.length + '명 / 전체 ' + RO.length + '명</p>' +
+    '<p class="small noprint">개인 코드는 학생 본인에게만 알려 주세요. 코드를 잃어버리거나 유출되면 [재발급]을 누르세요(예전 코드와 로그인 상태는 바로 무효가 됩니다).</p>' +
+    '<div style="overflow-x:auto"><table class="ov"><tr><th>학번</th><th>별칭</th><th>개인 코드</th><th>활동</th><th class="noprint">관리</th></tr>';
+  list.forEach(function(s){
+    h += '<tr><td class="n">' + esc(s.id) + '</td><td class="n">' + esc(s.name) + '</td><td style="font-family:monospace;font-size:15px;letter-spacing:1px">' + esc(s.code) + '</td><td>' + actLabel(s.acts) + '</td>' +
+      '<td class="noprint"><button class="btn sub" onclick="roReset(\'' + esc(s.id) + '\')">재발급</button> <button class="btn sub" onclick="roDel(\'' + esc(s.id) + '\')">삭제</button></td></tr>';
+  });
+  h += '</table></div></div>';
+  $('root').innerHTML = h;
+}
+function roImport(){
+  var lines = $('roIn').value.split(/\r?\n/), items = [];
+  lines.forEach(function(l){
+    l = l.trim(); if (!l) return;
+    var p = l.split(/\t|,|\s{2,}|\s+/);
+    var id = (p[0] || '').trim(); if (!id || !/^[0-9A-Za-z_-]+$/.test(id)) return;
+    items.push({ id: id, name: p.slice(1).join(' ').trim() });
+  });
+  if (!items.length){ alert('등록할 줄이 없습니다. 학번과 별칭을 한 줄에 한 명씩 붙여넣어 주세요.'); return; }
+  if (!confirm(items.length + '명을 등록할까요?')) return;
+  call('rosterImport', [items], function(r){ alert('새로 ' + r.added + '명 등록, ' + r.updated + '명은 별칭만 갱신했습니다.'); openRoster(); });
+}
+function roReset(id){
+  if (!confirm(id + ' 학생의 개인 코드를 새로 만들까요? 예전 코드는 바로 쓸 수 없게 됩니다.')) return;
+  call('rosterResetCode', [id], function(r){ RO.forEach(function(s){ if (s.id === id) s.code = r.code; }); renderRoster(); });
+}
+function roDel(id){
+  if (!confirm(id + ' 학생을 명단에서 지울까요? (이미 쓴 보고서 기록은 남지만 이 학생은 더 이상 로그인할 수 없습니다)')) return;
+  call('rosterDelete', [[id]], function(){ RO = RO.filter(function(s){ return s.id !== id; }); renderRoster(); });
+}
+function roCsv(){
+  var rows = [['학번', '별칭', '개인코드', '활동']].concat(RO.map(function(s){ return [s.id, s.name, s.code, s.acts]; }));
+  var csv = '﻿' + rows.map(function(r){ return r.map(function(v){ return '"' + String(v).replace(/"/g, '""') + '"'; }).join(','); }).join('\r\n');
+  var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' })); a.download = '자율탐구_명단.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+// 새로고침해도 로그인 유지: 저장해 둔 열쇠가 아직 유효하면 바로 이어서 시작
+(function(){
+  var t = ssGet('tok');
+  if (!t){ showLogin(); return; }
+  $('root').innerHTML = '<div class="card login"><p>불러오는 중…</p></div>';
+  TOKEN = t;
+  api('resume', []).then(function(j){
+    if (!j.ok){ showLogin(); return; }
+    var r = j.r; ROLE = r.role;
+    if (r.role === 'T') startTeacher(); else startStudent(r);
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "jayul-tamgu",
+  "version": "1.0.0",
+  "private": true,
+  "description": "〈화법과 언어〉 자율 탐구 보고서 작성 웹앱 (Cloudflare Workers + D1)",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.157.0"
+  }
+}
