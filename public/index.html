@@ -75,6 +75,21 @@
   .doc .bar{margin:6px 0 10px;display:flex;gap:8px}
   .doc .bar button{border:1px solid #6c8cd5;background:#eef3ff;color:#2f4b7c;border-radius:6px;padding:6px 12px;cursor:pointer;font:inherit;font-size:13px}
 
+
+  /* 개인 코드지 */
+  .sheet{width:194mm;margin:0 auto 14px;display:grid;grid-template-columns:1fr 1fr;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+  .sheet.n8{height:281mm;grid-template-rows:repeat(4,1fr)}
+  .sheet.n6{height:281mm;grid-template-rows:repeat(3,1fr)}
+  .cardp{border:1px dashed #888;padding:5mm 6mm;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;font-size:11px;line-height:1.35}
+  .cardp .ct{font-weight:bold;font-size:13px;color:#2f4b7c;border-bottom:1.5px solid #2f4b7c;padding-bottom:2mm}
+  .cardp .cr{font-size:14px}.cardp .cr b{font-size:18px;margin:0 8px 0 6px}.cardp .cl,.cardp .cl2{color:#666;font-size:11px}
+  .cardp .cn{color:#444}
+  .cardp .cc{font-family:'Consolas','Courier New',monospace;font-size:30px;font-weight:bold;letter-spacing:5px;text-align:center;border:2px solid #2f4b7c;border-radius:6px;padding:2mm 0;background:#f3f7ff}
+  .sheet.n6 .cardp .cc{font-size:36px}
+  .cardp .cu{font-size:11px;color:#333;word-break:break-all}.cardp .cu b{font-size:12px}
+  .cardp .cw{font-size:9.5px;color:#777}
+  .cardp.empty{border-color:transparent}
+
   /* 교사 */
   table.ov{border-collapse:collapse;width:100%}
   table.ov th,table.ov td{border:1px solid #ccc;padding:5px;font-size:13px;text-align:center}
@@ -89,6 +104,7 @@
   .modal .box{background:#fff;max-width:940px;margin:0 auto;border-radius:10px;padding:14px}
   @media print{
     @page{size:A4;margin:14mm}
+    @page cards{size:A4;margin:8mm}
     header,.tb,.noprint,.bar,.note,.tabs,#toast{display:none!important}
     body{background:#fff}main{padding:0;max-width:none}
     .page{box-shadow:none;padding:0;margin:0;max-width:none;min-height:0}
@@ -100,6 +116,9 @@
     .doc td.lab,.doc td.hd{-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .doc table tr{page-break-inside:avoid}
     .doc a{color:#000}
+    .sheet{page:cards;width:auto;margin:0;box-shadow:none;page-break-after:always;break-after:page;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .sheet:last-child{page-break-after:auto;break-after:auto}
+    .cardp{border-color:#888}
   }
 </style>
 </head>
@@ -595,7 +614,7 @@ function loadOverview(){
 function actLabel(a){ return a === '12' ? '활동 1·2' : (a ? '활동 ' + a : '미지정'); }
 function renderOverview(){
   var list = OV.filter(function(s){ return !FILTER || s.id.indexOf(FILTER) === 0; });
-  var h = teacherTabs('ov') + '<div class="card"><p style="margin-top:0"><b>일괄 지정</b> 학번 앞부분 <input type="text" id="flt" value="' + esc(FILTER) + '" placeholder="예: 205 (5반)" style="width:130px;display:inline-block"> ' +
+  var h = teacherTabs('ov') + '<div class="card">' + classButtons(OV, FILTER, 'setOvFilter') + '<p style="margin-top:0"><b>일괄 지정</b> 학번 앞부분 <input type="text" id="flt" value="' + esc(FILTER) + '" placeholder="예: 205 (5반)" style="width:130px;display:inline-block"> ' +
     '<button class="btn sub" onclick="FILTER=$(\'flt\').value.trim();renderOverview()">걸러 보기</button> 보이는 ' + list.length + '명을 ' +
     '<select id="bulk" style="width:auto;display:inline-block"><option value="1">활동 1</option><option value="2">활동 2</option><option value="12">활동 1·2 둘 다</option><option value="">미지정</option></select> ' +
     '<button class="btn" onclick="bulkAct()">으로 지정</button> <button class="btn sub" onclick="loadOverview()">새로고침</button></p>' +
@@ -761,24 +780,72 @@ function openRoster(){
   MODE = ''; DOC = null; $('tb').style.display = 'none'; setStatus('불러오는 중…');
   call('rosterList', [], function(list){ RO = list; setStatus(''); renderRoster(); });
 }
+var ROSEL = {};
+function classKey(id){ return /^\d{5}$/.test(id) ? id.slice(0, 3) : '기타'; }
+function classLabel(k){ return k === '기타' ? '기타' : Number(k.slice(1)) + '반'; }
+// 반 선택 버튼 줄: fn = 'ROFILTER' 또는 'FILTER' 를 바꾸고 다시 그리는 함수 이름
+function classButtons(all, cur, setter){
+  var keys = {}; all.forEach(function(s){ keys[classKey(s.id)] = (keys[classKey(s.id)] || 0) + 1; });
+  var ks = Object.keys(keys).sort();
+  var h = '<div class="tabs noprint" style="margin:6px 0"><button class="' + (!cur ? 'on' : '') + '" onclick="' + setter + '(\'\')">전체 (' + all.length + ')</button>';
+  ks.forEach(function(k){ h += '<button class="' + (cur === k ? 'on' : '') + '" onclick="' + setter + '(\'' + k + '\')">' + classLabel(k) + ' (' + keys[k] + ')</button>'; });
+  return h + '</div>';
+}
+function setRoFilter(k){ ROFILTER = k; renderRoster(); }
+function setOvFilter(k){ FILTER = k; renderOverview(); }
 function renderRoster(){
-  var list = RO.filter(function(s){ return !ROFILTER || s.id.indexOf(ROFILTER) === 0; });
+  var list = RO.filter(function(s){ return !ROFILTER || classKey(s.id) === ROFILTER; });
+  var selN = Object.keys(ROSEL).length;
+  var allOn = list.length > 0 && list.every(function(s){ return ROSEL[s.id]; });
   var h = teacherTabs('roster') +
     '<div class="card noprint"><b>학생 등록</b>' +
     '<p class="small" style="margin:4px 0">엑셀이나 한글 표에서 <b>학번</b>과 <b>별칭</b>(실명 대신 쓸 이름 또는 번호) 두 열을 복사해서 아래에 붙여넣으세요. 한 줄에 한 명입니다. 학번은 5자리(예: 20507 = 2학년 5반 7번)로 쓰면 반·번호가 양식에 자동으로 채워집니다. 이미 등록된 학번은 별칭만 바뀌고 개인 코드는 그대로입니다.</p>' +
-    '<textarea id="roIn" rows="5" style="width:100%;font:inherit;padding:8px;border:1px solid #bbb;border-radius:6px" placeholder="20501\t가나다\n20502\t라마바"></textarea>' +
+    '<textarea id="roIn" rows="4" style="width:100%;font:inherit;padding:8px;border:1px solid #bbb;border-radius:6px" placeholder="20501\t가나다\n20502\t라마바"></textarea>' +
     '<p><button class="btn" onclick="roImport()">등록하고 개인 코드 만들기</button></p></div>' +
-    '<div class="card"><p style="margin-top:0" class="noprint">학번 앞부분 <input type="text" id="roflt" value="' + esc(ROFILTER) + '" placeholder="예: 205 (5반)" style="width:130px;display:inline-block"> ' +
-    '<button class="btn sub" onclick="ROFILTER=$(\'roflt\').value.trim();renderRoster()">걸러 보기</button> ' +
-    '<button class="btn sub" onclick="roCsv()">CSV 내려받기(엑셀용)</button> <button class="btn sub" onclick="window.print()">인쇄</button> 보이는 ' + list.length + '명 / 전체 ' + RO.length + '명</p>' +
-    '<p class="small noprint">개인 코드는 학생 본인에게만 알려 주세요. 코드를 잃어버리거나 유출되면 [재발급]을 누르세요(예전 코드와 로그인 상태는 바로 무효가 됩니다).</p>' +
-    '<div style="overflow-x:auto"><table class="ov"><tr><th>학번</th><th>별칭</th><th>개인 코드</th><th>활동</th><th class="noprint">관리</th></tr>';
+    '<div class="card"><div class="noprint">' + classButtons(RO, ROFILTER, 'setRoFilter') +
+    '<p style="margin:6px 0"><button class="btn" onclick="showCards()"' + (selN ? '' : ' disabled') + '>🖨 선택한 ' + selN + '명 코드지 인쇄</button> ' +
+    '<button class="btn sub" onclick="roSelAll(' + (allOn ? 'false' : 'true') + ')">' + (allOn ? '보이는 학생 선택 해제' : '보이는 학생 모두 선택') + '</button> ' +
+    '<button class="btn sub" onclick="roCsv()">CSV 내려받기(엑셀용)</button> <span class="small">보이는 ' + list.length + '명 / 전체 ' + RO.length + '명</span></p>' +
+    '<p class="small">코드지를 뽑을 학생을 체크하세요(반을 바꿔도 체크는 유지됩니다). 개인 코드는 학생 본인에게만 알려 주세요. 잃어버리거나 유출되면 [재발급]을 누르세요(예전 코드와 로그인 상태는 바로 무효가 됩니다).</p></div>' +
+    '<div style="overflow-x:auto"><table class="ov"><tr><th style="width:36px"><input type="checkbox" ' + (allOn ? 'checked ' : '') + 'onchange="roSelAll(this.checked)"></th><th>학번</th><th>별칭</th><th>개인 코드</th><th>활동</th><th>관리</th></tr>';
   list.forEach(function(s){
-    h += '<tr><td class="n">' + esc(s.id) + '</td><td class="n">' + esc(s.name) + '</td><td style="font-family:monospace;font-size:15px;letter-spacing:1px">' + esc(s.code) + '</td><td>' + actLabel(s.acts) + '</td>' +
-      '<td class="noprint"><button class="btn sub" onclick="roReset(\'' + esc(s.id) + '\')">재발급</button> <button class="btn sub" onclick="roDel(\'' + esc(s.id) + '\')">삭제</button></td></tr>';
+    h += '<tr><td><input type="checkbox" ' + (ROSEL[s.id] ? 'checked ' : '') + 'onchange="roSel(\'' + esc(s.id) + '\',this.checked)"></td><td class="n">' + esc(s.id) + '</td><td class="n">' + esc(s.name) + '</td><td style="font-family:monospace;font-size:15px;letter-spacing:1px">' + esc(s.code) + '</td><td>' + actLabel(s.acts) + '</td>' +
+      '<td><button class="btn sub" onclick="roReset(\'' + esc(s.id) + '\')">재발급</button> <button class="btn sub" onclick="roDel(\'' + esc(s.id) + '\')">삭제</button></td></tr>';
   });
   h += '</table></div></div>';
   $('root').innerHTML = h;
+}
+function roSel(id, on){ if (on) ROSEL[id] = 1; else delete ROSEL[id]; renderRoster(); }
+function roSelAll(on){
+  RO.filter(function(s){ return !ROFILTER || classKey(s.id) === ROFILTER; }).forEach(function(s){ if (on) ROSEL[s.id] = 1; else delete ROSEL[s.id]; });
+  renderRoster();
+}
+
+// ───────── 개인 코드지 인쇄 (A4 한 장에 6장 또는 8장) ─────────
+var CARDN = 8;
+function showCards(){
+  var sel = RO.filter(function(s){ return ROSEL[s.id]; });
+  if (!sel.length){ alert('코드지를 뽑을 학생을 먼저 체크해 주세요.'); return; }
+  var per = CARDN, url = location.origin, pages = [];
+  for (var i = 0; i < sel.length; i += per) pages.push(sel.slice(i, i + per));
+  var h = '<div class="noprint card"><button class="btn sub" onclick="renderRoster()">← 명단으로</button> ' +
+    '한 장에 <select id="cardn" style="width:auto;display:inline-block" onchange="CARDN=Number(this.value);showCards()"><option value="6"' + (per === 6 ? ' selected' : '') + '>6장</option><option value="8"' + (per === 8 ? ' selected' : '') + '>8장</option></select> ' +
+    '<button class="btn" onclick="window.print()">인쇄 (' + sel.length + '명, ' + pages.length + '쪽)</button> ' +
+    '<span class="small">인쇄 창에서 용지 A4, 배율 100%(또는 “실제 크기”), 여백 “기본”으로 두고, 머리글·바닥글은 끄세요. 점선을 따라 자르면 됩니다.</span></div>';
+  pages.forEach(function(pg){
+    h += '<div class="sheet n' + per + '">';
+    pg.forEach(function(s){
+      h += '<div class="cardp"><div class="ct">〈화법과 언어〉 자율 탐구 보고서</div>' +
+        '<div class="cr"><span class="cl">학번</span><b>' + esc(s.id) + '</b>' + (s.name ? '<span class="cn">' + esc(s.name) + '</span>' : '') + '</div>' +
+        '<div class="cl2">개인 코드</div><div class="cc">' + esc(s.code) + '</div>' +
+        '<div class="cu">접속 주소<br><b>' + esc(url.replace(/^https?:\/\//, '')) + '</b></div>' +
+        '<div class="cw">※ 이 코드는 나만 사용하세요. 다른 사람에게 알려 주거나 사진으로 올리지 마세요. 잃어버리면 선생님께 말씀드리세요.</div></div>';
+    });
+    for (var k = pg.length; k < per; k++) h += '<div class="cardp empty"></div>';
+    h += '</div>';
+  });
+  $('root').innerHTML = h;
+  window.scrollTo(0, 0);
 }
 function roImport(){
   var lines = $('roIn').value.split(/\r?\n/), items = [];
