@@ -149,6 +149,7 @@ function ssGet(k){ try { return sessionStorage.getItem(k); } catch(e){ return nu
 function ssSet(k, v){ try { sessionStorage.setItem(k, v); } catch(e){} }
 function ssDel(k){ try { sessionStorage.removeItem(k); } catch(e){} }
 function setStatus(t){ $('status').textContent = t || ''; }
+var CFG = { title:'〈화법과 언어〉 자율 탐구', short:'자율 탐구', cardTitle:'< 화법과 언어 주제탐구 활동 >', qr:'/qr.png', acts:['1','2'] };
 function api(name, args, body, ctype){
   var hd = {}; if (TOKEN) hd.Authorization = 'Bearer ' + TOKEN;
   if (ctype) hd['Content-Type'] = ctype; else if (!body) hd['Content-Type'] = 'application/json';
@@ -527,7 +528,7 @@ function printDoc(){
 function showLogin(msg){
   ssDel('tok'); ROLE = ''; TOKEN = ''; MODE = ''; DOC = null; ROSEL = {}; RO = []; OV = []; FILTER = ''; ROFILTER = '';
   $('btnOut').style.display = 'none'; $('tb').style.display = 'none'; setStatus('');
-  $('title').textContent = '〈화법과 언어〉 자율 탐구';
+  $('title').textContent = CFG.title;
   $('root').innerHTML =
     '<div class="card login"><div class="tabs"><button id="tS" class="on" onclick="tab(\'S\')">학생</button><button id="tT" onclick="tab(\'T\')">교사</button></div>' +
     '<div id="fS"><label>학번</label><input type="text" id="sid" inputmode="numeric" autocomplete="off">' +
@@ -576,10 +577,10 @@ function studentToolbar(){
     '<span class="sep"></span><button onclick="printDoc()" title="내 보고서를 PDF로 저장">📄 PDF로 저장</button>';
 }
 function startStudent(r){
-  $('btnOut').style.display = ''; $('title').textContent = '자율 탐구 · ' + r.name;
+  $('btnOut').style.display = ''; $('title').textContent = CFG.short + ' · ' + r.name;
   var acts = r.acts.split('').filter(Boolean);
   if (!acts.length){
-    $('root').innerHTML = '<div class="card"><h3 style="margin-top:0">아직 활동이 지정되지 않았어요</h3><p>선생님이 내가 할 활동(활동 1 또는 활동 2)을 지정하면 이 화면에 보고서 양식이 나타납니다. 선생님께 말씀드려 주세요.</p></div>';
+    $('root').innerHTML = '<div class="card"><h3 style="margin-top:0">아직 활동이 지정되지 않았어요</h3><p>선생님이 내가 할 활동을 지정하면 이 화면에 보고서 양식이 나타납니다. 선생님께 말씀드려 주세요.</p></div>';
     return;
   }
   MODE = 'student';
@@ -607,11 +608,10 @@ var OV = [], VIEWACT = '1', FILTER = '';
 function teacherTabs(cur){
   return '<div class="tabs noprint"><button class="' + (cur === 'ov' ? 'on' : '') + '" onclick="loadOverview()">학생 현황·활동 지정</button>' +
     '<button class="' + (cur === 'roster' ? 'on' : '') + '" onclick="openRoster()">명단·개인 코드</button>' +
-    '<button class="' + (cur === 'tpl1' ? 'on' : '') + '" onclick="openTpl(\'1\')">활동 1 양식 편집</button>' +
-    '<button class="' + (cur === 'tpl2' ? 'on' : '') + '" onclick="openTpl(\'2\')">활동 2 양식 편집</button></div>';
+    CFG.acts.map(function(a){ return '<button class="' + (cur === 'tpl' + a ? 'on' : '') + '" onclick="openTpl(\'' + a + '\')">' + (CFG.acts.length > 1 ? '활동 ' + a + ' ' : '') + '양식 편집</button>'; }).join('') + '</div>';
 }
 function startTeacher(label){
-  $('btnOut').style.display = ''; $('title').textContent = '자율 탐구 · 교사 화면' + (label ? ' · ' + label : '');
+  $('btnOut').style.display = ''; $('title').textContent = CFG.short + ' · 교사 화면' + (label ? ' · ' + label : '');
   loadOverview();
 }
 function loadOverview(){
@@ -619,19 +619,19 @@ function loadOverview(){
   setStatus('불러오는 중…');
   call('teacherOverview', [], function(list){ OV = list; setStatus(''); renderOverview(); });
 }
-function actLabel(a){ return a === '12' ? '활동 1·2' : (a ? '활동 ' + a : '미지정'); }
+function actLabel(a){ if (CFG.acts.length < 2) return a ? '지정됨' : '미지정'; return a === '12' ? '활동 1·2' : (a ? '활동 ' + a : '미지정'); }
 function renderOverview(){
   var list = OV.filter(function(s){ return !FILTER || s.id.indexOf(FILTER) === 0; });
   var h = teacherTabs('ov') + '<div class="card">' + classButtons(OV, FILTER, 'setOvFilter') + '<p style="margin-top:0"><b>일괄 지정</b> 학번 앞부분 <input type="text" id="flt" value="' + esc(FILTER) + '" placeholder="예: 205 (5반)" style="width:130px;display:inline-block"> ' +
     '<button class="btn sub" onclick="FILTER=$(\'flt\').value.trim();renderOverview()">걸러 보기</button> 보이는 ' + list.length + '명을 ' +
-    '<select id="bulk" style="width:auto;display:inline-block"><option value="1">활동 1</option><option value="2">활동 2</option><option value="12">활동 1·2 둘 다</option><option value="">미지정</option></select> ' +
+    '<select id="bulk" style="width:auto;display:inline-block">' + (CFG.acts.length > 1 ? '<option value="1">활동 1</option><option value="2">활동 2</option><option value="12">활동 1·2 둘 다</option>' : '<option value="1">지정</option>') + '<option value="">미지정</option></select> ' +
     '<button class="btn" onclick="bulkAct()">으로 지정</button> <button class="btn sub" onclick="loadOverview()">새로고침</button></p>' +
     '<p class="small">칸을 누르면 학생의 보고서와 수정 이력이 열립니다. 붉은 칸은 붙여넣은 글자 수가 작성 글자 수의 50% 이상인 문서입니다(참고용).</p>' +
-    '<div style="overflow-x:auto"><table class="ov"><tr><th>학번</th><th>별칭</th><th>지정 활동</th><th>활동 1 보고서</th><th>활동 2 보고서</th></tr>';
+    '<div style="overflow-x:auto"><table class="ov"><tr><th>학번</th><th>별칭</th><th>지정 활동</th>' + CFG.acts.map(function(a){ return '<th>' + (CFG.acts.length > 1 ? '활동 ' + a + ' ' : '') + '보고서</th>'; }).join('') + '</tr>';
   list.forEach(function(s){
     h += '<tr><td class="n">' + esc(s.id) + '</td><td class="n">' + esc(s.name) + '</td><td><select onchange="setOne(\'' + esc(s.id) + '\',this.value)" style="width:auto">' +
-      ['', '1', '2', '12'].map(function(v){ return '<option value="' + v + '"' + (s.acts === v ? ' selected' : '') + '>' + actLabel(v) + '</option>'; }).join('') + '</select></td>';
-    ['1', '2'].forEach(function(a){
+      (CFG.acts.length > 1 ? ['', '1', '2', '12'] : ['', '1']).map(function(v){ return '<option value="' + v + '"' + (s.acts === v ? ' selected' : '') + '>' + actLabel(v) + '</option>'; }).join('') + '</select></td>';
+    CFG.acts.forEach(function(a){
       var d = s.docs[a];
       if (!d){ h += '<td style="color:#bbb">' + (s.acts.indexOf(a) >= 0 ? '시작 전' : '-') + '</td>'; return; }
       var heavy = d.len > 0 && d.paste >= d.len * 0.5 && d.paste >= 30;
@@ -847,7 +847,7 @@ function showCards(){
   pages.forEach(function(pg){
     h += '<div class="sheet n' + per + '">';
     pg.forEach(function(s){
-      h += '<div class="cardp"><div class="ct">&lt; 화법과 언어 주제탐구 활동 &gt;</div><div class="cb2"><img class="cq" src="/qr.png" alt="QR">' +
+      h += '<div class="cardp"><div class="ct">' + esc(CFG.cardTitle) + '</div><div class="cb2"><img class="cq" src="' + esc(CFG.qr) + '" alt="QR">' +
         '<div class="ci"><div class="cl">학번</div><div class="cv">' + esc(s.id) + '</div>' + (s.name ? '<div class="cl">이름</div><div class="cv cn">' + esc(s.name) + '</div>' : '') + '<div class="cl">개인 고유번호</div><div class="cc">' + esc(s.code) + '</div></div></div></div>';
     });
     for (var k = pg.length; k < per; k++) h += '<div class="cardp empty"></div>';
@@ -894,7 +894,7 @@ function roCsv(){
 }
 
 // 새로고침해도 로그인 유지: 저장해 둔 열쇠가 아직 유효하면 바로 이어서 시작
-(function(){
+api('appConfig', []).then(function(j){ if (j && j.ok && j.r){ CFG = j.r; document.title = CFG.title; } }).catch(function(){}).then(function(){
   var t = ssGet('tok');
   if (!t){ showLogin(); return; }
   $('root').innerHTML = '<div class="card login"><p>불러오는 중…</p></div>';
@@ -904,7 +904,7 @@ function roCsv(){
     var r = j.r; ROLE = r.role;
     if (r.role === 'T') startTeacher(r.teacher); else startStudent(r);
   });
-})();
+});
 </script>
 </body>
 </html>

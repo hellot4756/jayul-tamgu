@@ -1,0 +1,15 @@
+{
+  // 동아리(미디어마케팅반) 버전 — 기존 앱(wrangler.jsonc)과 코드는 같고 설정·데이터만 따로입니다.
+  // 배포 명령: npx wrangler deploy -c wrangler.club.jsonc
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dongari-report",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-05",
+  "assets": { "directory": "./public", "run_worker_first": ["/api/*"] },
+  "vars": { "APP_MODE": "club" },
+  "d1_databases": [
+    { "binding": "DB" },
+    { "binding": "IMG0" }
+  ],
+  "observability": { "enabled": true }
+}

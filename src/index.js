@@ -1,17 +1,30 @@
 // 〈화법과 언어〉 자율 탐구 보고서 작성 웹앱 - 서버 (Cloudflare Workers + D1)
 // 화면(public/index.html)은 정적 파일로 제공되고, /api/* 요청만 이 코드가 처리합니다.
-import { TEMPLATES } from './templates.js';
+import { TEMPLATES as TPL_MAIN } from './templates.js';
+import { TEMPLATES as TPL_CLUB } from './templates.club.js';
 
 const SNAP_EVERY_MS = 120000;          // 이력 스냅샷 간격
 const TOKEN_TTL_MS = 12 * 3600 * 1000; // 로그인 유지 시간
 const MAX_HTML = 400000;               // 문서 한 편 최대 글자 수
 const MAX_IMG_B64 = 700000;            // 이미지 1장 최대 크기(base64 글자 수, 약 500KB)
 const MAX_IMGS_PER_STUDENT = 60;
-const IMG_DBS = 3;
+let IMG_DBS = 3;
 // 교사 계정: key는 로그인·데이터 분리에 쓰이고, 비밀번호는 Secret 'TEACHER_PW_<key>'에 저장합니다.
 // (기존 TEACHER_PW 는 '567' 계정의 비밀번호로 계속 사용됩니다. 기존에 등록한 학생도 '567' 소속이 됩니다.)
-const TEACHERS = [{ key: '189', label: '189반' }, { key: '234', label: '234반' }, { key: '567', label: '567반' }];
-const DEFAULT_OWNER = '567';
+let TEACHERS = [{ key: '189', label: '189반' }, { key: '234', label: '234반' }, { key: '567', label: '567반' }];
+let DEFAULT_OWNER = '567';
+let TEMPLATES = TPL_MAIN;
+let CONFIG = { mode: 'main', title: '〈화법과 언어〉 자율 탐구', short: '자율 탐구', cardTitle: '< 화법과 언어 주제탐구 활동 >', qr: '/qr.png', acts: ['1', '2'], defaultActs: '' };
+// 동아리 버전: wrangler.club.jsonc 의 vars.APP_MODE = "club" 일 때 교사 1명·활동 1개·이미지 DB 1개로 동작합니다.
+// 배포 하나당 설정이 고정이므로 요청마다 바뀌는 값이 아닙니다.
+function applyMode(env) {
+  if (env.APP_MODE !== 'club') return;
+  IMG_DBS = 1;
+  TEACHERS = [{ key: 'club', label: '미디어마케팅반' }];
+  DEFAULT_OWNER = 'club';
+  TEMPLATES = TPL_CLUB;
+  CONFIG = { mode: 'club', title: '미디어마케팅반 개인 탐구 보고서', short: '미디어마케팅반', cardTitle: '미디어마케팅반 개인 탐구 보고서', qr: '/qr-club.png', acts: ['1'], defaultActs: '1' };
+}
 const teacherPw = (env, key) => env['TEACHER_PW_' + key] || (key === DEFAULT_OWNER ? env.TEACHER_PW : '');
 
 // ───────── 공통 도우미 ─────────
@@ -168,7 +181,7 @@ async function studentRow(db, id, tv) {
   return r;
 }
 function assertAct(row, act) {
-  if (act !== '1' && act !== '2') bad('활동 번호가 올바르지 않습니다.');
+  if (!CONFIG.acts.includes(act)) bad('활동 번호가 올바르지 않습니다.');
   if (actsOf(row.acts).indexOf(act) < 0) bad('선생님이 지정한 활동이 아닙니다.');
 }
 
@@ -187,6 +200,7 @@ const API = {
     bad('학번 또는 개인 코드가 맞지 않습니다.');
   },
   async teachers() { return TEACHERS; },
+  async appConfig() { return CONFIG; },
   async teacherLogin(c, key, pw) {
     key = String(key || '');
     const t = TEACHERS.find((x) => x.key === key);
@@ -338,9 +352,9 @@ const API = {
     const used = new Set((await c.db.prepare('SELECT code FROM roster').all()).results.map((r) => r.code.toUpperCase()));
     mine.forEach((x) => { let k; do { k = randCode(); } while (used.has(k)); used.add(k); x.code = k; });
     await c.db.prepare(
-      `INSERT INTO roster(id,name,code,acts,tv,owner) SELECT json_extract(value,'$.id'), json_extract(value,'$.name'), json_extract(value,'$.code'), '', 0, ? FROM json_each(?) WHERE true
+      `INSERT INTO roster(id,name,code,acts,tv,owner) SELECT json_extract(value,'$.id'), json_extract(value,'$.name'), json_extract(value,'$.code'), ?, 0, ? FROM json_each(?) WHERE true
        ON CONFLICT(id) DO UPDATE SET name=excluded.name WHERE roster.owner=excluded.owner`
-    ).bind(o, JSON.stringify(mine)).run();
+    ).bind(CONFIG.defaultActs, o, JSON.stringify(mine)).run();
     const after = (await c.db.prepare('SELECT COUNT(*) AS n FROM roster WHERE owner=?').bind(o).first()).n;
     return { added: after - before, updated: mine.length - (after - before), skipped };
   },
@@ -413,6 +427,7 @@ async function getImage(env, c, id) {
 // ───────── 진입점 ─────────
 export default {
   async fetch(req, env) {
+    applyMode(env);
     const url = new URL(req.url);
     const path = url.pathname;
     if (!path.startsWith('/api/')) return new Response('Not found', { status: 404 });
@@ -422,7 +437,7 @@ export default {
       const name = path.slice(5);
       const m = (req.headers.get('authorization') || '').match(/^Bearer (.+)$/);
       const c = { env, db, who: null };
-      if (name !== 'login' && name !== 'teacherLogin' && name !== 'teachers') c.who = await readToken(env, m && m[1]);
+      if (name !== 'login' && name !== 'teacherLogin' && name !== 'teachers' && name !== 'appConfig') c.who = await readToken(env, m && m[1]);
 
       if (name === 'uploadImage') return await uploadImage(env, c, req, url);
       if (!Object.prototype.hasOwnProperty.call(API, name)) bad('알 수 없는 요청입니다.');
