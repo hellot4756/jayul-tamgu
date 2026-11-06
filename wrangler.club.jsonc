@@ -6,6 +6,7 @@
   "main": "src/index.js",
   "compatibility_date": "2026-11-05",
   "assets": { "directory": "./public", "run_worker_first": ["/api/*"] },
+  "workers_dev": true,
   "vars": { "APP_MODE": "club" },
   "d1_databases": [
     { "binding": "DB" },
